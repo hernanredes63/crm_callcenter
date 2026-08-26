@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Front controller
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Seguridad básica
+Options -Indexes
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
