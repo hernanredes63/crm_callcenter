@@ -29,16 +29,17 @@ $seguimientos = $seguimientos ?? [];
             </div>
             <div class="col-md-3">
               <label class="form-label">Fecha lead</label>
-              <input type="date" name="fecha_lead" class="form-control"
-                     value="<?= $v('fecha_lead', date('Y-m-d')) ?>">
+              <input type="date" name="fecha_lead" class="form-control" value="<?= $v('fecha_lead', date('Y-m-d')) ?>">
             </div>
             <div class="col-md-6">
               <label class="form-label">Email</label>
               <input type="email" name="email" class="form-control" value="<?= $v('email') ?>">
             </div>
+            
             <div class="col-md-3">
               <label class="form-label">País</label>
-              <select name="pais_id" class="form-select">
+              <!-- MODIFICACIÓN 1: Agregamos id="paisSelect" para controlar el cambio con JS -->
+              <select name="pais_id" id="paisSelect" class="form-select">
                 <option value="">—</option>
                 <?php foreach ($catalog->paises() as $p): ?>
                   <option value="<?= $p['id'] ?>" <?= ($lead['pais_id'] ?? '') == $p['id'] ? 'selected' : '' ?>>
@@ -46,10 +47,16 @@ $seguimientos = $seguimientos ?? [];
                 <?php endforeach; ?>
               </select>
             </div>
+
+            <!-- MODIFICACIÓN 2: Quitamos los departamentos fijos de PHP, agregamos id="ciudadSelect" y data-ciudad-guardada -->
             <div class="col-md-3">
               <label class="form-label">Ciudad</label>
-              <input name="ciudad" class="form-control" value="<?= $v('ciudad') ?>">
+              <select name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
+                <option value="">— Seleccionar —</option>
+                <!-- Las opciones se llenarán automáticamente con JavaScript -->
+              </select>
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Empresa</label>
               <select name="empresa_id" class="form-select">
@@ -110,7 +117,14 @@ $seguimientos = $seguimientos ?? [];
             </div>
             <div class="col-md-3">
               <label class="form-label">Tipo pago</label>
-              <input name="tipo_pago" class="form-control" value="<?= $v('tipo_pago') ?>">
+              <select name="tipo_pago" class="form-select">
+                <option value="">— Seleccionar —</option>
+                <?php foreach (['Contado', 'Plazo'] as $pago): ?>
+                  <option value="<?= $pago ?>" <?= ($lead['tipo_pago'] ?? '') === $pago ? 'selected' : '' ?>>
+                    <?= $pago ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Agente</label>
@@ -122,6 +136,7 @@ $seguimientos = $seguimientos ?? [];
                 <?php endforeach; ?>
               </select>
             </div>
+
             <div class="col-12">
               <label class="form-label">Comentario</label>
               <textarea name="comentario" rows="3" class="form-control"><?= $v('comentario') ?></textarea>
@@ -137,6 +152,7 @@ $seguimientos = $seguimientos ?? [];
 
   <?php if ($isEdit): ?>
   <div class="col-lg-4">
+    <!-- Seguimientos -->
     <div class="card shadow-sm">
       <div class="card-header d-flex align-items-center">
         <strong>Seguimientos</strong>
@@ -148,7 +164,7 @@ $seguimientos = $seguimientos ?? [];
       </div>
       <div class="card-body p-0">
         <div id="segForm" class="collapse border-bottom p-3">
-          <form id="frmSegRedes" data-lead="<?= $lead['id'] ?>">
+          <form id="frmSeg" data-lead="<?= $lead['id'] ?>">
             <div class="mb-2">
               <label class="form-label small">Estado</label>
               <select name="estado" class="form-select form-select-sm">
@@ -175,9 +191,7 @@ $seguimientos = $seguimientos ?? [];
                 <span class="badge bg-primary me-2 align-self-start">#<?= $s['iteracion'] ?></span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold"><?= Helpers::e($s['estado']) ?></div>
-                  <?php if ($s['comentario']): ?>
-                    <div class="small text-muted"><?= Helpers::e($s['comentario']) ?></div>
-                  <?php endif; ?>
+                  <?php if ($s['comentario']): ?><div class="small text-muted"><?= Helpers::e($s['comentario']) ?></div><?php endif; ?>
                   <div class="small text-muted"><?= Helpers::e($s['created_at']) ?>
                     <?php if ($s['fecha_proximo_contacto']): ?>
                       · próx: <?= Helpers::e($s['fecha_proximo_contacto']) ?>
@@ -193,9 +207,57 @@ $seguimientos = $seguimientos ?? [];
   <?php endif; ?>
 </div>
 
+<!-- MODIFICACIÓN 3: Script de JavaScript para actualizar ciudades dinámicamente según el país seleccionado -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paisSelect = document.getElementById('paisSelect');
+    const ciudadSelect = document.getElementById('ciudadSelect');
+    const ciudadGuardada = ciudadSelect.getAttribute('data-ciudad-guardada');
+
+    // Diccionario de países y sus respectivas ciudades/capitales permitidas
+    const ciudadesPorPais = {
+        'Bolivia': ['Santa Cruz', 'La Paz', 'Cochabamba', 'Chuquisaca', 'Tarija', 'Potosí', 'Oruro', 'Beni', 'Pando'],
+        'Argentina': ['Buenos Aires'],
+        'Chile': ['Santiago'],
+        'Colombia': ['Bogotá'],
+        'Ecuador': ['Quito'],
+        'España': ['Madrid'],
+        'Estados Unidos': ['Washington D. C.'],
+        'México': ['Ciudad de México'],
+        'Paraguay': ['Asunción'],
+        'Perú': ['Lima'],
+        'Uruguay': ['Montevideo']
+    };
+
+    function actualizarCiudades() {
+        let paisNombre = '';
+        if (paisSelect.selectedIndex > 0) {
+            paisNombre = paisSelect.options[paisSelect.selectedIndex].text.trim();
+        }
+
+        ciudadSelect.innerHTML = '<option value="">— Seleccionar —</option>';
+
+        if (ciudadesPorPais[paisNombre]) {
+            ciudadesPorPais[paisNombre].forEach(function(ciudad) {
+                const option = document.createElement('option');
+                option.value = ciudad;
+                option.textContent = ciudad;
+                if (ciudad === ciudadGuardada) {
+                    option.selected = true;
+                }
+                ciudadSelect.appendChild(option);
+            });
+        }
+    }
+
+    paisSelect.addEventListener('change', actualizarCiudades);
+    actualizarCiudades();
+});
+</script>
+
 <?php if ($isEdit): ?>
 <script>
-document.getElementById('frmSegRedes')?.addEventListener('submit', async function (e) {
+document.getElementById('frmSeg')?.addEventListener('submit', async function (e) {
   e.preventDefault();
   const fd = new FormData(this);
   fd.append('_csrf', '<?= Helpers::csrf() ?>');

@@ -4,21 +4,15 @@
     <span class="badge bg-secondary ms-2"><?= count($leads) ?></span>
   </h4>
 
-  <!-- --- CAMBIO 1: BUSCADOR BACKEND --- -->
-  <!-- Se agregó la etiqueta <form> para enviar la variable "search" por GET al controlador -->
   <div class="mx-auto" style="width: 350px; max-width: 100%;">
-    <form method="GET" action="<?= Helpers::url('/leads') ?>" class="m-0">
-      <div class="input-group">
-        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-        <input type="text" name="search" class="form-control" placeholder="Buscar por nombre, teléfono o email..." value="<?= Helpers::e($search ?? '') ?>">
-        <!-- Botón para limpiar la búsqueda si hay un texto escrito -->
-        <?php if (!empty($search)): ?>
-          <a href="<?= Helpers::url('/leads') ?>" class="btn btn-outline-danger" title="Limpiar"><i class="bi bi-x-lg"></i></a>
-        <?php endif; ?>
-      </div>
-    </form>
+    <div class="input-group shadow-sm">
+      <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+      <input type="text" id="miBuscadorPersonalizado" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, teléfono o email..." value="<?= Helpers::e($search ?? '') ?>">
+      <button class="btn btn-outline-danger <?= empty($search) ? 'd-none' : '' ?>" id="btnLimpiarBuscador" title="Limpiar">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
   </div>
-  <!-- FIN DEL CAMBIO 1 -->
 
   <div class="ms-auto d-flex gap-2">
     <button id="btnExport" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
@@ -35,6 +29,8 @@
             <th>Fecha lead</th>
             <th>Nombre</th>
             <th>Teléfono</th>
+            <!-- MODIFICACIÓN 5: Columna oculta de Email para que DataTables la pueda buscar -->
+            <th class="d-none">Email</th>
             <th>Empresa</th>
             <th>Campaña</th>
             <th>Canal</th>
@@ -47,17 +43,31 @@
         </thead>
         <tbody>
         <?php foreach ($leads as $l):
-          $tempBadge = ['frio'=>'info','tibio'=>'warning','caliente'=>'danger'][$l['temperatura']] ?? 'secondary'; ?>
+          $tempBadge = ['frio'=>'info','tibio'=>'warning','caliente'=>'danger'][$l['temperatura']] ?? 'secondary';
+          // MODIFICACIÓN 7 (Parte A): Lógica para detectar el color del MQL
+          $mqlBadge = ['alto'=>'success','medio'=>'warning text-dark','malo'=>'danger'][strtolower(trim($l['mql_nivel'] ?? ''))] ?? 'secondary';
+        ?>
           <tr>
             <td><?= Helpers::e($l['fecha_lead']) ?></td>
             <td><?= Helpers::e($l['nombre']) ?></td>
             <td><?php if ($l['telefono']): ?>
               <a href="tel:<?= Helpers::e($l['telefono']) ?>"><?= Helpers::e($l['telefono']) ?></a>
             <?php endif; ?></td>
+            <!-- MODIFICACIÓN 5: Dato oculto de Email -->
+            <td class="d-none"><?= Helpers::e($l['email'] ?? '') ?></td>
             <td><?= Helpers::e($l['empresa_nombre']) ?></td>
             <td><?= Helpers::e($l['campana_nombre']) ?></td>
             <td><?= Helpers::e($l['canal_nombre']) ?></td>
-            <td><?= Helpers::e($l['mql_nivel']) ?></td>
+            
+            <!-- MODIFICACIÓN 7 (Parte B): Mostrar la etiqueta redondeada del MQL -->
+            <td>
+              <?php if (!empty($l['mql_nivel'])): ?>
+                <span class="badge rounded-pill bg-<?= $mqlBadge ?>"><?= Helpers::e($l['mql_nivel']) ?></span>
+              <?php else: ?>
+                <span class="text-muted small">—</span>
+              <?php endif; ?>
+            </td>
+            
             <td><span class="badge bg-<?= $tempBadge ?>"><?= Helpers::e($l['temperatura']) ?></span></td>
             <td><?= Helpers::e($l['operador_nombre']) ?></td>
             <td>
@@ -86,15 +96,40 @@
 
 <script>
 $(function () {
-  // Inicializamos DataTables normalmente
-  $('#tblLeads').DataTable({
+  var tabla = $('#tblLeads').DataTable({
     pageLength: 25,
     order: [[0,'desc']],
-    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' }
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
+    dom: 'lrtip',
+    // MODIFICACIÓN 6: Restringimos la búsqueda SÓLO a las columnas específicas
+    columnDefs: [
+      // Columna 1 (Nombre), 2 (Teléfono) y 3 (Email oculto) SÍ se pueden buscar
+      { targets: [1, 2, 3], searchable: true },
+      // Todas las demás columnas (Fecha, Empresa, Campaña, etc.) se ignoran en el buscador
+      { targets: [0, 4, 5, 6, 7, 8, 9, 10, 11], searchable: false }
+    ]
   });
 
-  // --- CAMBIO 2: Eliminamos la lógica keyup en JavaScript ---
-  // (Ya no es necesaria porque la búsqueda se procesa en el servidor al presionar Enter)
+  $('#miBuscadorPersonalizado').on('keyup', function () {
+    tabla.search(this.value).draw();
+    
+    if (this.value.trim() !== '') {
+      $('#btnLimpiarBuscador').removeClass('d-none');
+    } else {
+      $('#btnLimpiarBuscador').addClass('d-none');
+    }
+  });
+
+  $('#btnLimpiarBuscador').on('click', function() {
+    $('#miBuscadorPersonalizado').val(''); 
+    tabla.search('').draw(); 
+    $(this).addClass('d-none'); 
+  });
+  
+  if ($('#miBuscadorPersonalizado').val() !== '') {
+      tabla.search($('#miBuscadorPersonalizado').val()).draw();
+  }
+
 
   $('#btnExport').on('click', async function () {
     const btn = $(this).prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generando...');
@@ -104,20 +139,18 @@ $(function () {
       const leads = data.leads || [];
       const wb = XLSX.utils.book_new();
 
-      // Función para calcular el ancho perfecto de las columnas
       const autoEncuadrar = (datos, ws) => {
         if (datos.length > 0) {
           ws['!cols'] = Object.keys(datos[0]).map(llave => ({
             wch: Math.max(
-              llave.length, // Mide el título
-              ...datos.map(d => d[llave] ? d[llave].toString().length : 0) // Mide el contenido más largo
-            ) + 2 // Suma 2 espacios de margen para que respire
+              llave.length, 
+              ...datos.map(d => d[llave] ? d[llave].toString().length : 0) 
+            ) + 2 
           }));
         }
         return ws;
       };
 
-      // 1. Hoja de Leads
       const sheet1 = leads.map(l => ({
         'Fecha Lead': l.fecha_lead, 'Fecha Creación': l.created_at,
         'Nombre': l.nombre, 'Teléfono': l.telefono, 'Email': l.email,
@@ -131,7 +164,6 @@ $(function () {
       let ws1 = XLSX.utils.json_to_sheet(sheet1);
       XLSX.utils.book_append_sheet(wb, autoEncuadrar(sheet1, ws1), 'Leads');
 
-      // 2. Hoja de Seguimientos
       const segs = [];
       leads.forEach(l => (l.seguimientos||[]).forEach(s => segs.push({
         'Lead': l.nombre, 'Teléfono': l.telefono,
@@ -141,7 +173,6 @@ $(function () {
       let ws2 = XLSX.utils.json_to_sheet(segs);
       XLSX.utils.book_append_sheet(wb, autoEncuadrar(segs, ws2), 'Seguimientos');
 
-      // 3. Hoja de Derivados
       const derivados = leads.filter(l => l.derivado_ventas == 1)
         .sort((a,b) => (b.fecha_derivado_ventas||'').localeCompare(a.fecha_derivado_ventas||''))
         .map(l => ({
