@@ -25,86 +25,86 @@ final class SeguimientoVentasController extends Controller
         $hasta  = $_GET['hasta']  ?? '';
         $estado = $_GET['estado'] ?? 'todos';
 
-        // Vendedores disponibles
-        $vendedores = Database::pdo()->query(
-            "SELECT id, nombre, profile_id FROM vendedor ORDER BY nombre ASC"
-        )->fetchAll();
+        $leads = [];
+        $stats = ['total'=>0,'pendiente'=>0,'visita'=>0,'venta'=>0,'perdido'=>0];
 
-        // Si es vendedor, filtrar al suyo
+        // Base: buscar todos los derivados
+        $where = "l.derivado_ventas = 1";
+        $params = [];
+
+        // Filtro de privacidad: Si es vendedor, filtramos para que SOLO vea sus leads
         if ($role === 'vendedor' && $userId) {
             $pStmt = Database::pdo()->prepare("SELECT id FROM profiles WHERE user_id = ? LIMIT 1");
             $pStmt->execute([$userId]);
             $profileId = $pStmt->fetchColumn();
-            $vendedores = array_values(array_filter(
-                $vendedores,
-                fn($v) => $profileId && $v['profile_id'] === $profileId
-            ));
+            
+            if ($profileId) {
+                $where .= " AND l.vendedor_tabla_id = ?";
+                $params[] = $profileId;
+            } else {
+                $where .= " AND 1 = 0"; // Bloqueo de seguridad si no tiene perfil
+            }
         }
 
-        $leads = [];
-        $stats = ['total'=>0,'pendiente'=>0,'visita'=>0,'venta'=>0,'perdido'=>0];
+        if ($desde !== '') { $where .= " AND l.fecha_derivado_ventas >= ?"; $params[] = $desde . ' 00:00:00'; }
+        if ($hasta !== '') { $where .= " AND l.fecha_derivado_ventas <= ?"; $params[] = $hasta . ' 23:59:59'; }
 
-        if ($vendedores) {
-            $ids = array_column($vendedores, 'id');
-            $in  = implode(',', array_fill(0, count($ids), '?'));
-            $params = $ids;
+        // Actualizado: Ahora hace LEFT JOIN con "profiles" en lugar de la tabla vieja
+        $sql = "SELECT l.id, l.nombre, l.telefono, l.email, l.ciudad, l.pais,
+                       l.temperatura, l.fecha_lead, l.created_at,
+                       l.ejecutivo_ventas, l.vendedor_tabla_id,
+                       l.fecha_derivado_ventas,
+                       v.nombre AS vendedor_nombre,
+                       e.nombre AS empresa_nombre,
+                       p.nombre AS proyecto_nombre,
+                       c.nombre AS campana_nombre
+                FROM leads l
+                LEFT JOIN profiles  v ON v.id = l.vendedor_tabla_id
+                LEFT JOIN empresas  e ON e.id = l.empresa_id
+                LEFT JOIN proyectos p ON p.id = l.proyecto_id
+                LEFT JOIN campanas  c ON c.id = l.campana_id
+                WHERE $where
+                ORDER BY l.fecha_derivado_ventas DESC";
+                
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $leads = $stmt->fetchAll();
 
-            $where = "l.derivado_ventas = 1 AND l.vendedor_tabla_id IN ($in)";
-            if ($desde !== '') { $where .= " AND l.fecha_derivado_ventas >= ?"; $params[] = $desde . ' 00:00:00'; }
-            if ($hasta !== '') { $where .= " AND l.fecha_derivado_ventas <= ?"; $params[] = $hasta . ' 23:59:59'; }
+        // Buscar el historial de seguimientos de los leads encontrados
+        if ($leads) {
+            $leadIds = array_column($leads, 'id');
+            $inL = implode(',', array_fill(0, count($leadIds), '?'));
+            $stmt = Database::pdo()->prepare(
+                "SELECT * FROM seguimiento_ventas
+                 WHERE lead_id IN ($inL)
+                 ORDER BY created_at DESC"
+            );
+            $stmt->execute($leadIds);
+            $segs = $stmt->fetchAll();
 
-            $sql = "SELECT l.id, l.nombre, l.telefono, l.email, l.ciudad, l.pais,
-                           l.temperatura, l.fecha_lead, l.created_at,
-                           l.ejecutivo_ventas, l.vendedor_tabla_id,
-                           l.fecha_derivado_ventas,
-                           v.nombre AS vendedor_nombre,
-                           e.nombre AS empresa_nombre,
-                           p.nombre AS proyecto_nombre,
-                           c.nombre AS campana_nombre
-                    FROM leads l
-                    LEFT JOIN vendedor  v ON v.id = l.vendedor_tabla_id
-                    LEFT JOIN empresas  e ON e.id = l.empresa_id
-                    LEFT JOIN proyectos p ON p.id = l.proyecto_id
-                    LEFT JOIN campanas  c ON c.id = l.campana_id
-                    WHERE $where
-                    ORDER BY l.fecha_derivado_ventas DESC";
-            $stmt = Database::pdo()->prepare($sql);
-            $stmt->execute($params);
-            $leads = $stmt->fetchAll();
+            $segMap = [];
+            foreach ($segs as $s) { $segMap[$s['lead_id']][] = $s; }
 
-            if ($leads) {
-                $leadIds = array_column($leads, 'id');
-                $inL = implode(',', array_fill(0, count($leadIds), '?'));
-                $stmt = Database::pdo()->prepare(
-                    "SELECT * FROM seguimiento_ventas
-                     WHERE lead_id IN ($inL)
-                     ORDER BY created_at DESC"
-                );
-                $stmt->execute($leadIds);
-                $segs = $stmt->fetchAll();
-
-                $segMap = [];
-                foreach ($segs as $s) { $segMap[$s['lead_id']][] = $s; }
-
-                foreach ($leads as &$l) {
-                    $l['seguimientos'] = $segMap[$l['id']] ?? [];
-                    $l['ultimo_estado'] = $l['seguimientos'][0]['estado'] ?? 'pendiente';
-                }
-                unset($l);
+            foreach ($leads as &$l) {
+                $l['seguimientos'] = $segMap[$l['id']] ?? [];
+                $l['ultimo_estado'] = $l['seguimientos'][0]['estado'] ?? 'pendiente';
             }
+            unset($l);
+        }
 
-            foreach ($leads as $l) {
-                $stats['total']++;
-                $st = $l['ultimo_estado'] ?? 'pendiente';
-                if (isset($stats[$st])) $stats[$st]++;
-            }
+        // Calcular estadísticas
+        foreach ($leads as $l) {
+            $stats['total']++;
+            $st = $l['ultimo_estado'] ?? 'pendiente';
+            if (isset($stats[$st])) $stats[$st]++;
+        }
 
-            if ($estado !== 'todos') {
-                $leads = array_values(array_filter(
-                    $leads,
-                    fn($l) => ($l['ultimo_estado'] ?? 'pendiente') === $estado
-                ));
-            }
+        // Aplicar el filtro de los botones (píldoras)
+        if ($estado !== 'todos') {
+            $leads = array_values(array_filter(
+                $leads,
+                fn($l) => ($l['ultimo_estado'] ?? 'pendiente') === $estado
+            ));
         }
 
         $this->view('seguimiento_ventas/index', [
@@ -134,28 +134,26 @@ final class SeguimientoVentasController extends Controller
             Helpers::redirect('/seguimiento-ventas');
         }
 
-        // vendedor_tabla_id del lead
+        // Obtener a quién pertenece el lead
         $stmt = Database::pdo()->prepare(
             "SELECT vendedor_tabla_id FROM leads WHERE id = ? AND derivado_ventas = 1 LIMIT 1"
         );
         $stmt->execute([$leadId]);
         $vt = $stmt->fetchColumn();
+        
         if (!$vt) {
             $_SESSION['flash_error'] = 'Lead no derivado o inexistente.';
             Helpers::redirect('/seguimiento-ventas');
         }
 
-        // Si es vendedor, verificar que sea el suyo
+        // Si es vendedor, verificar que sea SU lead (usando la nueva lógica)
         if (Auth::role() === 'vendedor') {
             $userId = Auth::user()['id'] ?? null;
             $p = Database::pdo()->prepare("SELECT id FROM profiles WHERE user_id = ? LIMIT 1");
             $p->execute([$userId]);
             $profileId = $p->fetchColumn();
-            $ok = Database::pdo()->prepare(
-                "SELECT 1 FROM vendedor WHERE id = ? AND profile_id = ? LIMIT 1"
-            );
-            $ok->execute([(int)$vt, $profileId]);
-            if (!$ok->fetchColumn()) {
+            
+            if ((int)$vt !== (int)$profileId) {
                 http_response_code(403);
                 exit('No puedes registrar seguimientos para este lead.');
             }

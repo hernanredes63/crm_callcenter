@@ -1,90 +1,276 @@
-<?php /** @var array $leads @var Catalog $catalog @var string $search */ ?>
-<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Leads
-    <span class="badge bg-secondary ms-2"><?= count($leads) ?></span>
-  </h4>
+<?php 
+  /** @var array $leads @var Catalog $catalog @var string $search */ 
 
-  <div class="mx-auto" style="width: 350px; max-width: 100%;">
-    <div class="input-group shadow-sm">
-      <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-      <input type="text" id="miBuscadorPersonalizado" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, teléfono o email..." value="<?= Helpers::e($search ?? '') ?>">
-      <button class="btn btn-outline-danger <?= empty($search) ? 'd-none' : '' ?>" id="btnLimpiarBuscador" title="Limpiar">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </div>
+  $hoy = date('Y-m-d');
+  $leadsHoy = 0;
+  $gestionesHoy = 0;
+
+  // Filtrar los leads en PHP si se envían fechas por la URL
+  $desde = $_GET['desde'] ?? '';
+  $hasta = $_GET['hasta'] ?? '';
+
+  if (!empty($desde) || !empty($hasta)) {
+      $leads = array_filter($leads, function($l) use ($desde, $hasta) {
+          $fLead = !empty($l['fecha_lead']) ? date('Y-m-d', strtotime($l['fecha_lead'])) : '';
+          if (empty($fLead)) return false;
+          if (!empty($desde) && $fLead < $desde) return false;
+          if (!empty($hasta) && $fLead > $hasta) return false;
+          return true;
+      });
+  }
+
+  if (!empty($leads) && is_array($leads)) {
+      foreach ($leads as $l) {
+          $fLead = !empty($l['fecha_lead']) ? date('Y-m-d', strtotime($l['fecha_lead'])) : '';
+          $fCreate = !empty($l['created_at']) ? date('Y-m-d', strtotime($l['created_at'])) : '';
+          if ($fLead === $hoy || $fCreate === $hoy) {
+              $leadsHoy++;
+          }
+          if (!empty($l['seguimientos']) && is_array($l['seguimientos'])) {
+              foreach ($l['seguimientos'] as $s) {
+                  $fSeg = !empty($s['created_at']) ? date('Y-m-d', strtotime($s['created_at'])) : '';
+                  if ($fSeg === $hoy) {
+                      $gestionesHoy++;
+                  }
+              }
+          }
+      }
+  }
+?>
+
+<!-- Estilos para clonar la estética de Lovable -->
+<style>
+  .text-lovable-purple { color: #702eb5 !important; }
+  .bg-lovable-purple { background-color: #702eb5 !important; }
+  .btn-lovable-purple { background-color: #702eb5; color: white; border: none; }
+  .btn-lovable-purple:hover { background-color: #5b2496; color: white; }
+  .btn-outline-purple { color: #702eb5; border-color: #702eb5; background-color: transparent; }
+  .btn-outline-purple:hover { background-color: #702eb5; color: white; }
+  
+  /* Tabla limpia y con efecto hover al pasar el cursor */
+  .table-lovable th { background-color: white !important; color: #1f2937; font-weight: 700; font-size: 0.9rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; }
+  .table-lovable td { vertical-align: middle; font-size: 0.9rem; color: #374151; border-bottom: 1px solid #f3f4f6; padding: 0.8rem 0.5rem; }
+  .table-lovable tbody tr:hover { background-color: #faf5ff !important; }
+  
+  /* Píldoras suaves */
+  .badge-soft-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  .badge-soft-secondary { background-color: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+
+  /* Menús Desplegables estilo Lovable */
+  .form-select-lovable {
+      border-radius: 8px; border: 1px solid #e5e7eb; color: #4b5563; font-size: 0.85rem; 
+      background-color: #ffffff; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); cursor: pointer; padding-top: 0.35rem; padding-bottom: 0.35rem;
+  }
+  .form-select-lovable:focus { border-color: #702eb5; box-shadow: 0 0 0 0.2rem rgba(112, 46, 181, 0.25); }
+
+  /* Calendario Flatpickr morado */
+  .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #702eb5 !important; border-color: #702eb5 !important; }
+  .flatpickr-calendar .flatpickr-prev-month, .flatpickr-calendar .flatpickr-next-month {
+      background-color: #702eb5 !important; border-radius: 6px !important; top: 10px !important; height: 28px !important; width: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important;
+  }
+  .flatpickr-calendar .flatpickr-prev-month { left: 10px !important; }
+  .flatpickr-calendar .flatpickr-next-month { right: 10px !important; }
+  .flatpickr-calendar .flatpickr-prev-month svg, .flatpickr-calendar .flatpickr-next-month svg { fill: #ffffff !important; width: 14px !important; height: 14px !important; }
+  .flatpickr-calendar .flatpickr-prev-month:hover, .flatpickr-calendar .flatpickr-next-month:hover { background-color: #5b2496 !important; }
+</style>
+
+<!-- 1. CABECERA -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div>
+    <h3 class="fw-bold mb-1 text-dark">Leads</h3>
   </div>
-
-  <div class="ms-auto d-flex gap-2">
-    <button id="btnExport" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
-    <a href="<?= Helpers::url('/leads/nuevo') ?>" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nuevo lead</a>
+  
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <!-- Contadores Dinámicos -->
+    <div class="d-flex align-items-center bg-white border rounded px-3 py-1 shadow-sm small text-muted">
+      <i class="bi bi-plus text-secondary me-2"></i> Leads hoy: <span class="fw-bold text-dark ms-2"><?= $leadsHoy ?></span>
+    </div>
+    <div class="d-flex align-items-center bg-white border rounded px-3 py-1 shadow-sm small text-muted">
+      <i class="bi bi-telephone text-secondary me-2"></i> Gestiones hoy: <span class="fw-bold text-dark ms-2"><?= $gestionesHoy ?></span>
+    </div>
+    <!-- Botones de Acción -->
+    <button id="btnExport" class="btn btn-white border shadow-sm small fw-semibold"><i class="bi bi-download me-2"></i> Exportar Excel</button>
+    <a href="<?= Helpers::url('/leads/nuevo') ?>" class="btn btn-lovable-purple shadow-sm small fw-semibold"><i class="bi bi-plus-lg me-2"></i> Nuevo Lead</a>
   </div>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-body">
-    <div class="table-responsive">
-      <table id="tblLeads" class="table table-striped table-hover align-middle w-100">
-        <thead class="table-light">
+<!-- 2. BARRA DE BÚSQUEDA Y FILTROS -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+  <div class="card-body p-3">
+    <form method="get" id="formFiltrosLeads">
+      
+      <!-- Mantener valores de temperatura, mql y derivado al enviar el formulario de fechas si es necesario -->
+      <input type="hidden" name="temperatura" value="<?= Helpers::e($_GET['temperatura'] ?? '') ?>">
+      <input type="hidden" name="mql" value="<?= Helpers::e($_GET['mql'] ?? '') ?>">
+      <input type="hidden" name="derivado" value="<?= Helpers::e($_GET['derivado'] ?? '') ?>">
+
+      <!-- Búsqueda Gigante -->
+      <div class="input-group mb-3 border rounded-3 p-1">
+        <span class="input-group-text bg-transparent border-0 text-muted px-3"><i class="bi bi-search"></i></span>
+        <input type="text" id="miBuscadorPersonalizado" class="form-control border-0 shadow-none bg-transparent ps-0" placeholder="Buscar por nombre, teléfono o email..." value="<?= Helpers::e($search ?? '') ?>">
+        <button type="button" class="btn border-0 text-muted <?= empty($search) ? 'd-none' : '' ?>" id="btnLimpiarBuscador" title="Limpiar"><i class="bi bi-x-circle-fill"></i></button>
+      </div>
+
+      <!-- Fila de Controles (Dropdowns + Fechas) -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        
+        <!-- Bloque Izquierdo: Los 3 Menús Desplegables de Lovable -->
+        <div class="d-flex flex-wrap gap-2">
+          <select id="filtroTemperaturaSelect" class="form-select form-select-lovable w-auto">
+            <option value="">Todas las temperaturas</option>
+            <option value="caliente" <?= ($_GET['temperatura'] ?? '') === 'caliente' ? 'selected' : '' ?>>Caliente</option>
+            <option value="tibio" <?= ($_GET['temperatura'] ?? '') === 'tibio' ? 'selected' : '' ?>>Tibio</option>
+            <option value="frio" <?= ($_GET['temperatura'] ?? '') === 'frio' ? 'selected' : '' ?>>Frío</option>
+          </select>
+
+          <select id="filtroMQLSelect" class="form-select form-select-lovable w-auto">
+            <option value="">Todos los MQL</option>
+            <option value="Alto" <?= ($_GET['mql'] ?? '') === 'Alto' ? 'selected' : '' ?>>Alto</option>
+            <option value="Medio" <?= ($_GET['mql'] ?? '') === 'Medio' ? 'selected' : '' ?>>Medio</option>
+            <option value="Malo" <?= ($_GET['mql'] ?? '') === 'Malo' ? 'selected' : '' ?>>Malo</option>
+          </select>
+
+          <select id="filtroDerivadoSelect" class="form-select form-select-lovable w-auto">
+            <option value="">Todos</option>
+            <option value="Sí" <?= ($_GET['derivado'] ?? '') === 'Sí' ? 'selected' : '' ?>>Derivado a ventas</option>
+            <option value="No" <?= ($_GET['derivado'] ?? '') === 'No' ? 'selected' : '' ?>>No derivado</option>
+          </select>
+        </div>
+
+        <!-- Bloque Derecho: Filtros de Fecha (Flatpickr con recarga por formulario) -->
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="position-relative hover-shadow rounded">
+            <div class="d-flex align-items-center rounded px-3 py-1 border shadow-sm bg-white" style="cursor: pointer; height: 34px;">
+              <span class="text-muted small me-2">Desde</span>
+              <span class="text-dark small fw-semibold" id="label-desde"><?= !empty($_GET['desde']) ? date('d/m/Y', strtotime($_GET['desde'])) : 'dd/mm/aaaa' ?></span>
+              <i class="bi bi-chevron-down text-muted ms-2 small"></i>
+            </div>
+            <input type="text" name="desde" id="input-desde" value="<?= Helpers::e($_GET['desde'] ?? '') ?>" class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;">
+          </div>
+
+          <div class="position-relative hover-shadow rounded">
+            <div class="d-flex align-items-center rounded px-3 py-1 border shadow-sm bg-white" style="cursor: pointer; height: 34px;">
+              <span class="text-muted small me-2">Hasta</span>
+              <span class="text-dark small fw-semibold" id="label-hasta"><?= !empty($_GET['hasta']) ? date('d/m/Y', strtotime($_GET['hasta'])) : 'dd/mm/aaaa' ?></span>
+              <i class="bi bi-chevron-down text-muted ms-2 small"></i>
+            </div>
+            <input type="text" name="hasta" id="input-hasta" value="<?= Helpers::e($_GET['hasta'] ?? '') ?>" class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;">
+          </div>
+
+          <?php if (!empty($_GET['desde']) || !empty($_GET['hasta'])): ?>
+            <a href="<?= Helpers::url('/leads') ?>" class="btn btn-sm btn-outline-secondary" title="Limpiar fechas"><i class="bi bi-x-lg"></i></a>
+          <?php endif; ?>
+        </div>
+        
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 3. TABLA DE LEADS -->
+<div class="card border-0 shadow-sm rounded-3">
+  <div class="card-body p-0">
+    <div class="table-responsive px-3 pb-3">
+      <table id="tblLeads" class="table table-lovable table-hover align-middle w-100 mb-0">
+        <thead>
           <tr>
-            <th>Fecha lead</th>
+            <th>Fecha Lead</th>
             <th>Nombre</th>
             <th>Teléfono</th>
-            <!-- MODIFICACIÓN 5: Columna oculta de Email para que DataTables la pueda buscar -->
             <th class="d-none">Email</th>
             <th>Empresa</th>
             <th>Campaña</th>
             <th>Canal</th>
             <th>MQL</th>
-            <th>Temp.</th>
+            <th>Último Estado</th>
             <th>Operador</th>
             <th>Derivado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-center">Acción</th>
           </tr>
         </thead>
         <tbody>
         <?php foreach ($leads as $l):
-          $tempBadge = ['frio'=>'info','tibio'=>'warning','caliente'=>'danger'][$l['temperatura']] ?? 'secondary';
-          // MODIFICACIÓN 7 (Parte A): Lógica para detectar el color del MQL
-          $mqlBadge = ['alto'=>'success','medio'=>'warning text-dark','malo'=>'danger'][strtolower(trim($l['mql_nivel'] ?? ''))] ?? 'secondary';
+          $mqlRaw = strtolower(trim($l['mql_nivel'] ?? ''));
+          $mqlBadge = match($mqlRaw) {
+              'alto'  => 'success',
+              'medio' => 'warning text-dark',
+              'malo'  => 'danger',
+              default => 'secondary'
+          };
+
+          $tempVal = strtolower(trim($l['temperatura'] ?? ''));
+          $tempBadge = match($tempVal) {
+              'caliente' => 'danger',
+              'tibio'    => 'warning text-dark',
+              'frio'     => 'info',
+              default    => 'secondary'
+          };
         ?>
           <tr>
-            <td><?= Helpers::e($l['fecha_lead']) ?></td>
-            <td><?= Helpers::e($l['nombre']) ?></td>
+            <td class="text-muted small"><?= Helpers::e(date('Y-m-d', strtotime($l['fecha_lead']))) ?></td>
+            <td class="fw-semibold text-dark"><?= Helpers::e($l['nombre']) ?: 'Sin nombre' ?></td>
             <td><?php if ($l['telefono']): ?>
-              <a href="tel:<?= Helpers::e($l['telefono']) ?>"><?= Helpers::e($l['telefono']) ?></a>
+              <a href="tel:<?= Helpers::e($l['telefono']) ?>" class="text-decoration-none text-dark"><?= Helpers::e($l['telefono']) ?></a>
             <?php endif; ?></td>
-            <!-- MODIFICACIÓN 5: Dato oculto de Email -->
             <td class="d-none"><?= Helpers::e($l['email'] ?? '') ?></td>
-            <td><?= Helpers::e($l['empresa_nombre']) ?></td>
-            <td><?= Helpers::e($l['campana_nombre']) ?></td>
-            <td><?= Helpers::e($l['canal_nombre']) ?></td>
+            <td class="small"><?= Helpers::e($l['empresa_nombre']) ?: 'NM' ?></td>
+            <td class="small">
+                <?php if (!empty($l['campana_nombre'])): ?>
+                    <i class="bi bi-megaphone-fill text-muted me-1"></i><?= Helpers::e($l['campana_nombre']) ?>
+                <?php else: ?>
+                    <span class="text-muted">—</span>
+                <?php endif; ?>
+            </td>
+            <td class="small"><?= Helpers::e($l['canal_nombre']) ?></td>
             
-            <!-- MODIFICACIÓN 7 (Parte B): Mostrar la etiqueta redondeada del MQL -->
             <td>
               <?php if (!empty($l['mql_nivel'])): ?>
-                <span class="badge rounded-pill bg-<?= $mqlBadge ?>"><?= Helpers::e($l['mql_nivel']) ?></span>
+                <span class="badge rounded-pill bg-<?= $mqlBadge ?> px-2 fw-normal"><?= Helpers::e($l['mql_nivel']) ?></span>
               <?php else: ?>
                 <span class="text-muted small">—</span>
               <?php endif; ?>
             </td>
             
-            <td><span class="badge bg-<?= $tempBadge ?>"><?= Helpers::e($l['temperatura']) ?></span></td>
-            <td><?= Helpers::e($l['operador_nombre']) ?></td>
+            <td>
+              <?php if (!empty($l['temperatura'])): ?>
+                <span class="badge rounded-pill bg-<?= $tempBadge ?> px-2 fw-normal"><?= Helpers::e($l['temperatura']) ?></span>
+              <?php else: ?>
+                <span class="text-muted small">—</span>
+              <?php endif; ?>
+            </td>
+            
+            <td class="small"><?= Helpers::e($l['operador_nombre']) ?></td>
+            
             <td>
               <?php if ((int)$l['derivado_ventas'] === 1): ?>
-                <span class="badge bg-success">Sí · <?= Helpers::e($l['vendedor_tabla_nombre'] ?? '-') ?></span>
-              <?php else: ?><span class="text-muted">No</span><?php endif; ?>
-            </td>
-            <td class="text-end">
-              <a class="btn btn-sm btn-outline-primary" href="<?= Helpers::url('/leads/'.$l['id'].'/editar') ?>">
-                <i class="bi bi-pencil"></i></a>
-              <?php if (Auth::isSupervisor()): ?>
-              <form method="post" action="<?= Helpers::url('/leads/'.$l['id'].'/eliminar') ?>" class="d-inline"
-                    onsubmit="return confirm('¿Eliminar este lead?')">
-                <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-              </form>
+                <span class="badge rounded-pill bg-success px-2 fw-normal">Sí</span>
+              <?php else: ?>
+                <span class="badge rounded-pill bg-danger px-2 fw-normal">No</span>
               <?php endif; ?>
+            </td>
+            
+            <td class="text-center">
+              <div class="d-inline-flex gap-1 align-items-center justify-content-center">
+                <!-- Botón de llamada rápida (Protocolo tel:) -->
+                <?php if (!empty($l['telefono'])): ?>
+                <a class="btn btn-sm btn-outline-success rounded-pill px-3 py-1" href="tel:<?= Helpers::e($l['telefono']) ?>" title="Llamar a <?= Helpers::e($l['telefono']) ?>">
+                  <i class="bi bi-telephone"></i>
+                </a>
+                <?php endif; ?>
+
+                <a class="btn btn-sm btn-outline-purple rounded-pill px-3 py-1" href="<?= Helpers::url('/leads/'.$l['id'].'/editar') ?>" title="Editar lead">
+                  <i class="bi bi-pencil"></i>
+                </a>
+
+                <?php if (Auth::isSupervisor()): ?>
+                <form method="post" action="<?= Helpers::url('/leads/'.$l['id'].'/eliminar') ?>" class="d-inline" onsubmit="return confirm('¿Eliminar este lead?')">
+                  <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
+                  <button class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" title="Eliminar lead">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+                <?php endif; ?>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -94,25 +280,56 @@
   </div>
 </div>
 
+<!-- LIBRERÍAS Y SCRIPTS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const config = { 
+        locale: "es", 
+        dateFormat: "Y-m-d", 
+        disableMobile: "true", 
+        onChange: function() { 
+            document.getElementById('formFiltrosLeads').submit(); 
+        } 
+    };
+    flatpickr("#input-desde", config);
+    flatpickr("#input-hasta", config);
+});
+
 $(function () {
   var tabla = $('#tblLeads').DataTable({
     pageLength: 25,
     order: [[0,'desc']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
-    dom: 'lrtip',
-    // MODIFICACIÓN 6: Restringimos la búsqueda SÓLO a las columnas específicas
+    dom: 'rt<"d-flex justify-content-between align-items-center pt-3"ip>',
     columnDefs: [
-      // Columna 1 (Nombre), 2 (Teléfono) y 3 (Email oculto) SÍ se pueden buscar
-      { targets: [1, 2, 3], searchable: true },
-      // Todas las demás columnas (Fecha, Empresa, Campaña, etc.) se ignoran en el buscador
-      { targets: [0, 4, 5, 6, 7, 8, 9, 10, 11], searchable: false }
+      { targets: [1, 2, 3, 7, 8, 10], searchable: true },
+      { targets: [0, 4, 5, 6, 9, 11], searchable: false, orderable: false }
     ]
   });
 
+  const aplicarFiltrosDesplegables = () => {
+    let temp = $('#filtroTemperaturaSelect').val();
+    let mql = $('#filtroMQLSelect').val();
+    let derivadoSelect = $('#filtroDerivadoSelect').val();
+
+    tabla.column(8).search(temp);
+    tabla.column(7).search(mql);
+    tabla.column(10).search(derivadoSelect);
+    tabla.draw();
+  };
+
+  $('#filtroTemperaturaSelect, #filtroMQLSelect, #filtroDerivadoSelect').on('change', function() {
+    aplicarFiltrosDesplegables();
+  });
+
+  aplicarFiltrosDesplegables();
+
   $('#miBuscadorPersonalizado').on('keyup', function () {
     tabla.search(this.value).draw();
-    
     if (this.value.trim() !== '') {
       $('#btnLimpiarBuscador').removeClass('d-none');
     } else {
@@ -130,7 +347,7 @@ $(function () {
       tabla.search($('#miBuscadorPersonalizado').val()).draw();
   }
 
-
+  // Exportar Excel
   $('#btnExport').on('click', async function () {
     const btn = $(this).prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generando...');
     try {
@@ -142,10 +359,7 @@ $(function () {
       const autoEncuadrar = (datos, ws) => {
         if (datos.length > 0) {
           ws['!cols'] = Object.keys(datos[0]).map(llave => ({
-            wch: Math.max(
-              llave.length, 
-              ...datos.map(d => d[llave] ? d[llave].toString().length : 0) 
-            ) + 2 
+            wch: Math.max( llave.length, ...datos.map(d => d[llave] ? d[llave].toString().length : 0) ) + 2 
           }));
         }
         return ws;
@@ -158,16 +372,14 @@ $(function () {
         'MQL': l.mql_nivel, 'Temperatura': l.temperatura,
         'Operador': l.operador_nombre, 'Vendedor': l.vendedor_tabla_nombre,
         'Derivado': l.derivado_ventas == 1 ? 'Sí' : 'No',
-        'Fecha derivación': l.fecha_derivado_ventas || '',
-        'Comentario': l.comentario
+        'Fecha derivación': l.fecha_derivado_ventas || '', 'Comentario': l.comentario
       }));
       let ws1 = XLSX.utils.json_to_sheet(sheet1);
       XLSX.utils.book_append_sheet(wb, autoEncuadrar(sheet1, ws1), 'Leads');
 
       const segs = [];
       leads.forEach(l => (l.seguimientos||[]).forEach(s => segs.push({
-        'Lead': l.nombre, 'Teléfono': l.telefono,
-        'Iteración': s.iteracion, 'Estado': s.estado, 'Comentario': s.comentario,
+        'Lead': l.nombre, 'Teléfono': l.telefono, 'Iteración': s.iteracion, 'Estado': s.estado, 'Comentario': s.comentario,
         'Próx. contacto': s.fecha_proximo_contacto, 'Fecha': s.created_at
       })));
       let ws2 = XLSX.utils.json_to_sheet(segs);
@@ -176,10 +388,8 @@ $(function () {
       const derivados = leads.filter(l => l.derivado_ventas == 1)
         .sort((a,b) => (b.fecha_derivado_ventas||'').localeCompare(a.fecha_derivado_ventas||''))
         .map(l => ({
-          'Fecha derivación': l.fecha_derivado_ventas,
-          'Fecha creación': l.created_at,
-          'Teléfono': l.telefono, 'Nombre': l.nombre,
-          'Campaña': l.campana_nombre, 'Empresa': l.empresa_nombre,
+          'Fecha derivación': l.fecha_derivado_ventas, 'Fecha creación': l.created_at,
+          'Teléfono': l.telefono, 'Nombre': l.nombre, 'Campaña': l.campana_nombre, 'Empresa': l.empresa_nombre,
           'Operador': l.operador_nombre, 'Vendedor': l.vendedor_tabla_nombre
         }));
       let ws3 = XLSX.utils.json_to_sheet(derivados);
