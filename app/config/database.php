@@ -7,11 +7,12 @@ return [
     'port'     => 3306,
     #'database' => 'crm_callcenter',  // crm_leads
     #'username' => 'root',
-    'database' => 'crm_db',
-    'username' => 'crm_user',
-    'password' => '1234',
+    'database' => 'crm_callcenter',
+    'username' => 'root',
+    'password' => '',
     'charset'  => 'utf8mb4',
-];
+];  
+
 /*
 return [
     'host'     => '192.168.10.6',

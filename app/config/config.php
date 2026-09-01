@@ -5,12 +5,12 @@
 declare(strict_types=1);
 
 // URL base pública (sin slash final). Ej: 'http://localhost/crm' o 'https://crm.midominio.com'
-
-///define('BASE_URL', 'http://localhost:80/lovable_migracion_callcenter/completo/crm_callcenter_php/public');   //8000
-define('BASE_URL', 'http://192.168.56.150/crm/public');
-
-
-//define('BASE_URL', '/callcenter_test/crm_callcenter/public/');   //8000  // PROD
+if (!defined('BASE_URL')) {
+    $scheme    = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+    $host      = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    define('BASE_URL', "{$scheme}://{$host}{$scriptDir}");
+}
 
 
 

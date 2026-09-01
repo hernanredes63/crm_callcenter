@@ -191,20 +191,18 @@
         <tbody>
         <?php foreach ($leads as $l):
           $mqlRaw = strtolower(trim($l['mql_nivel'] ?? ''));
-          $mqlBadge = match($mqlRaw) {
+          $mqlBadge = [
               'alto'  => 'success',
               'medio' => 'warning text-dark',
               'malo'  => 'danger',
-              default => 'secondary'
-          };
+          ][$mqlRaw] ?? 'secondary';
 
           $tempVal = strtolower(trim($l['temperatura'] ?? ''));
-          $tempBadge = match($tempVal) {
+          $tempBadge = [
               'caliente' => 'danger',
               'tibio'    => 'warning text-dark',
               'frio'     => 'info',
-              default    => 'secondary'
-          };
+          ][$tempVal] ?? 'secondary';
         ?>
           <tr>
             <td class="text-muted small"><?= Helpers::e(date('Y-m-d', strtotime($l['fecha_lead']))) ?></td>

@@ -1,0 +1,1 @@
+Migración y Despliegue: Lovable a PHP 7.4 + MySQL 8

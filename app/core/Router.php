@@ -43,10 +43,16 @@ final class Router
         $uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
         // Quitar el base path si el proyecto está bajo un subdirectorio
-        $basePath = parse_url(BASE_URL, PHP_URL_PATH) ?? '';
-        if ($basePath && strpos($uri, $basePath) === 0) {
+        $basePath = rtrim(parse_url(BASE_URL, PHP_URL_PATH) ?? '', '/');
+        if ($basePath !== '' && strpos($uri, $basePath) === 0) {
             $uri = substr($uri, strlen($basePath));
         }
+
+        // Quitar /index.php si se incluye explícitamente en la URL
+        if (strpos($uri, '/index.php') === 0) {
+            $uri = substr($uri, 10);
+        }
+
         $uri = '/' . ltrim($uri, '/');
 
         foreach ($this->routes as $r) {
