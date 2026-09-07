@@ -134,15 +134,27 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
+            <!-- CAMBIO: Lógica de permisos para el campo Agente -->
             <div class="col-md-6">
               <label class="form-label">Agente</label>
-              <select name="agente_id" class="form-select">
-                <option value="">—</option>
-                <?php foreach ($catalog->agentes() as $a): ?>
-                  <option value="<?= $a['id'] ?>" <?= ($lead['agente_id'] ?? '') === $a['id'] ? 'selected' : '' ?>>
-                    <?= Helpers::e($a['nombre']) ?></option>
-                <?php endforeach; ?>
-              </select>
+              
+              <?php if (Auth::isSupervisor()): ?>
+                  <!-- VISTA PARA ADMIN/SUPERVISOR: Menú desplegable normal -->
+                  <select name="agente_id" class="form-select">
+                    <option value="">—</option>
+                    <?php foreach ($catalog->agentes() as $a): ?>
+                      <option value="<?= $a['id'] ?>" <?= ($lead['agente_id'] ?? '') === $a['id'] ? 'selected' : '' ?>>
+                        <?= Helpers::e($a['nombre']) ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+              <?php else: ?>
+                  <!-- VISTA PARA OPERADOR/VENDEDOR: Campo bloqueado con su nombre automático -->
+                  <input type="text" class="form-control bg-light" value="<?= Helpers::e(Auth::user()['nombre']) ?>" readonly disabled>
+                  <!-- Input oculto que envía su ID real a la base de datos al guardar -->
+                  <input type="hidden" name="agente_id" value="<?= Auth::userId() ?>">
+              <?php endif; ?>
+              
             </div>
           
             <!-- CAMBIO: Botón Switch "Se envió mensaje" -->

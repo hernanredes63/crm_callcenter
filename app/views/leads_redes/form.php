@@ -57,9 +57,10 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
+            <!-- CAMBIO: Se agregó id="empresaSelect" -->
             <div class="col-md-4">
               <label class="form-label">Empresa</label>
-              <select name="empresa_id" class="form-select">
+              <select name="empresa_id" id="empresaSelect" class="form-select">
                 <option value="">—</option>
                 <?php foreach ($catalog->empresas() as $e): ?>
                   <option value="<?= $e['id'] ?>" <?= ($lead['empresa_id'] ?? '') === $e['id'] ? 'selected' : '' ?>>
@@ -67,16 +68,22 @@ $seguimientos = $seguimientos ?? [];
                 <?php endforeach; ?>
               </select>
             </div>
+            
+            <!-- CAMBIO: Agregamos data-empresa-id a cada opción -->
             <div class="col-md-4">
               <label class="form-label">Campaña</label>
-              <select name="campana_id" class="form-select">
-                <option value="">—</option>
+              <select name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
+                <option value="" data-empresa-id="">—</option>
                 <?php foreach ($catalog->campanas() as $c): ?>
-                  <option value="<?= $c['id'] ?>" <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
-                    <?= Helpers::e($c['nombre']) ?></option>
+                  <option value="<?= $c['id'] ?>" 
+                          data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" 
+                          <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
+                    <?= Helpers::e($c['nombre']) ?>
+                  </option>
                 <?php endforeach; ?>
               </select>
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Proyecto</label>
               <select name="proyecto_id" class="form-select">
@@ -255,6 +262,72 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
+
+
+<!-- MODIFICACIÓN 4: Filtro dinámico (Versión Blindada) -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var empresaSelect = document.getElementById('empresaSelect');
+    var campanaSelect = document.getElementById('campanaSelect');
+    
+    if (!empresaSelect || !campanaSelect) return;
+
+    // Guardamos las campañas de forma súper segura en la memoria
+    var campañasOriginales = [];
+    for (var i = 0; i < campanaSelect.options.length; i++) {
+        campañasOriginales.push({
+            value: campanaSelect.options[i].value,
+            text: campanaSelect.options[i].text,
+            empresaId: campanaSelect.options[i].getAttribute('data-empresa-id') || ''
+        });
+    }
+
+    var campanaGuardada = campanaSelect.getAttribute('data-campana-guardada');
+
+    function actualizarCampanas() {
+        var empresaIdSeleccionada = empresaSelect.value;
+        
+        // 1. Vaciamos la lista por completo
+        campanaSelect.options.length = 0;
+
+        // 2. Filtramos y volvemos a meter solo las que correspondan
+        for (var j = 0; j < campañasOriginales.length; j++) {
+            var camp = campañasOriginales[j];
+            
+            // Siempre mostramos la primera opción ("—")
+            if (j === 0) {
+                campanaSelect.add(new Option(camp.text, camp.value));
+                continue;
+            }
+
+            // MAGIA: Si el ID de la empresa coincide, la mostramos
+            if (empresaIdSeleccionada === camp.empresaId) {
+                var nuevaOpcion = new Option(camp.text, camp.value);
+                nuevaOpcion.setAttribute('data-empresa-id', camp.empresaId);
+                campanaSelect.add(nuevaOpcion);
+            }
+        }
+
+        // Si estábamos editando un lead, volvemos a seleccionar su campaña
+        if (campanaGuardada) {
+            campanaSelect.value = campanaGuardada;
+        }
+    }
+
+    // Le decimos que escuche cada vez que cambies la empresa
+    empresaSelect.addEventListener('change', actualizarCampanas);
+    
+    // Lo ejecutamos la primera vez
+    actualizarCampanas();
+});
+</script>
+
+
+
+
+
+
 <?php if ($isEdit): ?>
 <script>
 document.getElementById('frmSeg')?.addEventListener('submit', async function (e) {
@@ -269,4 +342,7 @@ document.getElementById('frmSeg')?.addEventListener('submit', async function (e)
   else alert(j.error || 'Error al guardar');
 });
 </script>
+
+
+
 <?php endif; ?>
