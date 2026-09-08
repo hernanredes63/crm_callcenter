@@ -38,7 +38,6 @@ $seguimientos = $seguimientos ?? [];
             
             <div class="col-md-3">
               <label class="form-label">País</label>
-              <!-- MODIFICACIÓN 1: Se agregó id="paisSelect" para que JavaScript pueda detectarlo -->
               <select name="pais_id" id="paisSelect" class="form-select">
                 <option value="">—</option>
                 <?php foreach ($catalog->paises() as $p): ?>
@@ -48,20 +47,16 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
-            <!--codigo para las ciudades -->
             <div class="col-md-3">
               <label class="form-label">Ciudad</label>
-              <!-- MODIFICACIÓN 2: Se quitó la lista fija de PHP, se agregó id="ciudadSelect" 
-                   y se guardó la ciudad actual en data-ciudad-guardada para la edición -->
               <select name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
                 <option value="">— Seleccionar —</option>
-                <!-- Las opciones se llenarán con JavaScript dependiendo del país -->
               </select>
             </div>
 
             <div class="col-md-4">
               <label class="form-label">Empresa</label>
-              <select name="empresa_id" class="form-select">
+              <select name="empresa_id" id="empresaSelect" class="form-select">
                 <option value="">—</option>
                 <?php foreach ($catalog->empresas() as $e): ?>
                   <option value="<?= $e['id'] ?>" <?= ($lead['empresa_id'] ?? '') === $e['id'] ? 'selected' : '' ?>>
@@ -69,26 +64,31 @@ $seguimientos = $seguimientos ?? [];
                 <?php endforeach; ?>
               </select>
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Campaña</label>
-              <select name="campana_id" class="form-select">
-                <option value="">—</option>
+              <select name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
+                <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->campanas() as $c): ?>
-                  <option value="<?= $c['id'] ?>" <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
-                    <?= Helpers::e($c['nombre']) ?></option>
+                  <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
+                    <?= Helpers::e($c['nombre']) ?>
+                  </option>
                 <?php endforeach; ?>
               </select>
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Proyecto</label>
-              <select name="proyecto_id" class="form-select">
-                <option value="">—</option>
+              <select name="proyecto_id" id="proyectoSelect" class="form-select" data-proyecto-guardado="<?= $v('proyecto_id') ?>">
+                <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->proyectos() as $c): ?>
-                  <option value="<?= $c['id'] ?>" <?= ($lead['proyecto_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
-                    <?= Helpers::e($c['nombre']) ?></option>
+                  <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['proyecto_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
+                    <?= Helpers::e($c['nombre']) ?>
+                  </option>
                 <?php endforeach; ?>
               </select>
             </div>
+            
             <div class="col-md-3">
               <label class="form-label">Canal</label>
               <select name="canal_id" class="form-select">
@@ -111,7 +111,6 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
-
             <div class="col-md-3">
               <label class="form-label">Temperatura</label>
               <select name="temperatura" class="form-select">
@@ -121,7 +120,6 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
-            <!-- CAMBIO: Selector de Tipo de Pago -->
             <div class="col-md-3">
               <label class="form-label">Tipo pago</label>
               <select name="tipo_pago" class="form-select">
@@ -134,12 +132,9 @@ $seguimientos = $seguimientos ?? [];
               </select>
             </div>
 
-            <!-- CAMBIO: Lógica de permisos para el campo Agente -->
             <div class="col-md-6">
               <label class="form-label">Agente</label>
-              
               <?php if (Auth::isSupervisor()): ?>
-                  <!-- VISTA PARA ADMIN/SUPERVISOR: Menú desplegable normal -->
                   <select name="agente_id" class="form-select">
                     <option value="">—</option>
                     <?php foreach ($catalog->agentes() as $a): ?>
@@ -149,15 +144,11 @@ $seguimientos = $seguimientos ?? [];
                     <?php endforeach; ?>
                   </select>
               <?php else: ?>
-                  <!-- VISTA PARA OPERADOR/VENDEDOR: Campo bloqueado con su nombre automático -->
                   <input type="text" class="form-control bg-light" value="<?= Helpers::e(Auth::user()['nombre']) ?>" readonly disabled>
-                  <!-- Input oculto que envía su ID real a la base de datos al guardar -->
                   <input type="hidden" name="agente_id" value="<?= Auth::userId() ?>">
               <?php endif; ?>
-              
             </div>
           
-            <!-- CAMBIO: Botón Switch "Se envió mensaje" -->
             <div class="col-md-6 d-flex align-items-center">
               <div class="form-check form-switch p-3 border rounded w-100 bg-light">
                 <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="switchMensaje" name="se_envio_mensaje" value="1" style="width: 2.5em; height: 1.25em;">
@@ -261,14 +252,17 @@ $seguimientos = $seguimientos ?? [];
   <?php endif; ?>
 </div>
 
-<!-- MODIFICACIÓN 3: Script para cambiar la ciudad automáticamente según el país -->
+<!-- SCRIPT PRINCIPAL: PAÍSES, CIUDADES, EMPRESAS, CAMPAÑAS Y PROYECTOS -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // ==========================================
+    // 1. LÓGICA DE PAÍSES Y CIUDADES
+    // ==========================================
     const paisSelect = document.getElementById('paisSelect');
     const ciudadSelect = document.getElementById('ciudadSelect');
-    const ciudadGuardada = ciudadSelect.getAttribute('data-ciudad-guardada');
+    const ciudadGuardada = ciudadSelect ? ciudadSelect.getAttribute('data-ciudad-guardada') : null;
 
-    // Diccionario de países con sus departamentos/capitales
     const ciudadesPorPais = {
         'Bolivia': ['Santa Cruz', 'La Paz', 'Cochabamba', 'Chuquisaca', 'Tarija', 'Potosí', 'Oruro', 'Beni', 'Pando'],
         'Argentina': ['Buenos Aires'],
@@ -283,36 +277,114 @@ document.addEventListener('DOMContentLoaded', function() {
         'Uruguay': ['Montevideo']
     };
 
-    function actualizarCiudades() {
-        // Obtenemos el texto del país (ej. "Bolivia"), no su ID numérico
-        let paisNombre = '';
-        if (paisSelect.selectedIndex > 0) {
-            paisNombre = paisSelect.options[paisSelect.selectedIndex].text.trim();
+    if (paisSelect && ciudadSelect) {
+        function actualizarCiudades() {
+            let paisNombre = '';
+            if (paisSelect.selectedIndex > 0) {
+                paisNombre = paisSelect.options[paisSelect.selectedIndex].text.trim();
+            }
+            ciudadSelect.innerHTML = '<option value="">— Seleccionar —</option>';
+            if (ciudadesPorPais[paisNombre]) {
+                ciudadesPorPais[paisNombre].forEach(function(ciudad) {
+                    const option = document.createElement('option');
+                    option.value = ciudad;
+                    option.textContent = ciudad;
+                    if (ciudad === ciudadGuardada) option.selected = true;
+                    ciudadSelect.appendChild(option);
+                });
+            }
         }
-
-        // Limpiamos las opciones previas
-        ciudadSelect.innerHTML = '<option value="">— Seleccionar —</option>';
-
-        if (ciudadesPorPais[paisNombre]) {
-            // Si el país está en el diccionario, inyectamos sus ciudades
-            ciudadesPorPais[paisNombre].forEach(function(ciudad) {
-                const option = document.createElement('option');
-                option.value = ciudad;
-                option.textContent = ciudad;
-                // Si la ciudad coincide con la que el lead ya tenía guardada, la seleccionamos
-                if (ciudad === ciudadGuardada) {
-                    option.selected = true;
-                }
-                ciudadSelect.appendChild(option);
-            });
-        }
+        paisSelect.addEventListener('change', actualizarCiudades);
+        actualizarCiudades();
     }
 
-    // Escuchamos el evento de cambio en el selector de país
-    paisSelect.addEventListener('change', actualizarCiudades);
-    
-    // Lo ejecutamos inmediatamente al cargar la página para que se llene si estamos editando
-    actualizarCiudades();
+    // ==========================================
+    // 2. LÓGICA DE EMPRESAS, CAMPAÑAS Y PROYECTOS
+    // ==========================================
+    const empresaSelect = document.getElementById('empresaSelect');
+    const campanaSelect = document.getElementById('campanaSelect');
+    const proyectoSelect = document.getElementById('proyectoSelect');
+
+    if (empresaSelect) {
+        // A. Guardar en memoria las campañas originales
+        const campanasOriginales = [];
+        if (campanaSelect) {
+            for (let i = 0; i < campanaSelect.options.length; i++) {
+                campanasOriginales.push({
+                    value: campanaSelect.options[i].value,
+                    text: campanaSelect.options[i].text,
+                    empresaId: campanaSelect.options[i].getAttribute('data-empresa-id') || ''
+                });
+            }
+        }
+
+        // B. Guardar en memoria los proyectos originales
+        const proyectosOriginales = [];
+        if (proyectoSelect) {
+            for (let i = 0; i < proyectoSelect.options.length; i++) {
+                proyectosOriginales.push({
+                    value: proyectoSelect.options[i].value,
+                    text: proyectoSelect.options[i].text,
+                    empresaId: proyectoSelect.options[i].getAttribute('data-empresa-id') || ''
+                });
+            }
+        }
+
+        const campanaGuardada = campanaSelect ? campanaSelect.getAttribute('data-campana-guardada') : null;
+        const proyectoGuardado = proyectoSelect ? proyectoSelect.getAttribute('data-proyecto-guardado') : null;
+
+        function actualizarDependientes() {
+            const empresaIdSeleccionada = empresaSelect.value;
+            
+            // --- FILTRAR CAMPAÑAS ---
+            if (campanaSelect) {
+                campanaSelect.options.length = 0; // Vaciar
+                if (!empresaIdSeleccionada) {
+                    campanaSelect.add(new Option("— Seleccionar Empresa Primero —", ""));
+                } else {
+                    campanaSelect.add(new Option("— Seleccionar Campaña —", ""));
+                    campanasOriginales.forEach((camp, index) => {
+                        if (index === 0) return;
+                        if (camp.empresaId === empresaIdSeleccionada) {
+                            const nuevaOpcion = new Option(camp.text, camp.value);
+                            nuevaOpcion.setAttribute('data-empresa-id', camp.empresaId);
+                            campanaSelect.add(nuevaOpcion);
+                        }
+                    });
+                    if (campanaGuardada && campanaSelect.querySelector(`option[value="${campanaGuardada}"]`)) {
+                        campanaSelect.value = campanaGuardada;
+                    }
+                }
+            }
+
+            // --- FILTRAR PROYECTOS ---
+            if (proyectoSelect) {
+                proyectoSelect.options.length = 0; // Vaciar
+                if (!empresaIdSeleccionada) {
+                    proyectoSelect.add(new Option("— Seleccionar Empresa Primero —", ""));
+                } else {
+                    proyectoSelect.add(new Option("— Seleccionar Proyecto —", ""));
+                    proyectosOriginales.forEach((proy, index) => {
+                        if (index === 0) return;
+                        if (proy.empresaId === empresaIdSeleccionada) {
+                            const nuevaOpcion = new Option(proy.text, proy.value);
+                            nuevaOpcion.setAttribute('data-empresa-id', proy.empresaId);
+                            proyectoSelect.add(nuevaOpcion);
+                        }
+                    });
+                    if (proyectoGuardado && proyectoSelect.querySelector(`option[value="${proyectoGuardado}"]`)) {
+                        proyectoSelect.value = proyectoGuardado;
+                    }
+                }
+            }
+        }
+
+        // Escuchar cambios de la empresa
+        empresaSelect.addEventListener('change', actualizarDependientes);
+        
+        // Ejecutar la primera vez para que limpie si está en "Nuevo Lead"
+        actualizarDependientes();
+    }
 });
 </script>
 
