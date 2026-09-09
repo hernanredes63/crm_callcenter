@@ -41,7 +41,7 @@ final class LeadsController extends Controller
         ]);
     }
 
-    public function store(): void
+   public function store(): void
     {
         $this->requireAuth();
         Helpers::csrfCheck();
@@ -58,7 +58,7 @@ final class LeadsController extends Controller
         // Creamos el lead y obtenemos su ID
         $newLeadId = $this->leads->create($data); 
         
-        // --- CAMBIO: Verificamos si el switch de mensaje está activo ---
+        // --- Seguimiento: Verificamos si el switch de mensaje está activo ---
         if (isset($_POST['se_envio_mensaje']) && $_POST['se_envio_mensaje'] == '1') {
             $this->seg->create([
                 'lead_id'    => $newLeadId,
@@ -67,6 +67,29 @@ final class LeadsController extends Controller
             ]);
         }
         
+        // ==========================================
+        // NUEVO CAMBIO: Derivar al instante si se eligió un vendedor
+        // ==========================================
+        // Leemos el ID numérico del vendedor que vino oculto en el formulario de la derecha
+        $vendId = (int)($_POST['vendedor_tabla_id'] ?? 0);
+        
+        if ($vendId > 0) {
+            try {
+                // Ejecutamos la derivación automática
+                $this->leads->derivar((string)$newLeadId, $vendId);
+                Helpers::flash('ok', 'Lead creado y derivado a ventas exitosamente.');
+                Helpers::redirect('/leads');
+                return; 
+            } catch (Throwable $e) {
+                // Si el vendedor tiene error en la BD, avisamos sin romper la pantalla
+                Helpers::flash('error', 'Lead creado, pero hubo un error de base de datos al derivar: ' . $e->getMessage());
+                Helpers::redirect('/leads');
+                return;
+            }
+        }
+        // ==========================================
+        
+        // Si no se eligió vendedor, termina el guardado normal
         Helpers::flash('ok', 'Lead creado correctamente.');
         Helpers::redirect('/leads');
     }
@@ -127,16 +150,29 @@ final class LeadsController extends Controller
     {
         $this->requireAuth();
         Helpers::csrfCheck();
+        
+        // CORRECCIÓN: Volvemos a tratarlo como número (int) para respetar el modo estricto de PHP
         $vendId = (int)($_POST['vendedor_tabla_id'] ?? 0);
-        if ($vendId <= 0) { Helpers::flash('error', 'Vendedor inválido.'); Helpers::redirect('/leads/'.$id.'/editar'); }
-        try {
-            $this->leads->derivar($id, $vendId);
-            Helpers::flash('ok', 'Lead derivado a ventas.');
-        } catch (Throwable $e) {
-            Helpers::flash('error', $e->getMessage());
+        
+        // Si es 0 (eligió la opción "Selecciona vendedor..."), le pedimos amablemente que elija uno
+        if ($vendId <= 0) { 
+            Helpers::flash('error', 'Por favor, selecciona un vendedor de la lista antes de presionar Derivar.'); 
+            Helpers::redirect('/leads/'.$id.'/editar'); 
+            return;
         }
+        
+        try {
+            // Ahora sí le pasamos el número entero correcto a la función
+            $this->leads->derivar($id, $vendId);
+            Helpers::flash('ok', 'Lead derivado a ventas exitosamente.');
+        } catch (Throwable $e) {
+            // Si el vendedor tiene error en la BD (como Juan de Dios), atrapamos el error aquí
+            Helpers::flash('error', 'Error en la base de datos al derivar (¿El vendedor fue borrado?): ' . $e->getMessage());
+        }
+        
         Helpers::redirect('/leads/' . $id . '/editar');
     }
+
 
     public function storeSeguimiento(string $id): void
     {
@@ -193,6 +229,7 @@ final class LeadsController extends Controller
             Helpers::flash('error', 'El nombre es obligatorio.');
             Helpers::redirect($_SERVER['HTTP_REFERER'] ?? '/leads');
         }
+
         return [
             'nombre'       => $nombre,
             'telefono'     => trim((string)($in['telefono'] ?? '')),
@@ -207,7 +244,7 @@ final class LeadsController extends Controller
             'temperatura'  => in_array($in['temperatura'] ?? '', ['frio','tibio','caliente'], true) ? $in['temperatura'] : 'frio',
             'tipo_pago'    => trim((string)($in['tipo_pago'] ?? '')),
             'comentario'   => trim((string)($in['comentario'] ?? '')),
-            'agente_id'    => $in['agente_id'] ?: null,
+            'agente_id'    => $in['agente_id'] ?? null, // Regresamos a la validación original
             'fecha_lead'   => $in['fecha_lead'] ?: date('Y-m-d'),
         ];
     }

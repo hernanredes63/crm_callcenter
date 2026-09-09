@@ -16,7 +16,7 @@ $seguimientos = $seguimientos ?? [];
   <div class="col-lg-8">
     <div class="card shadow-sm">
       <div class="card-body">
-        <form method="post" action="<?= $action ?>">
+        <form id="mainLeadForm" method="post" action="<?= $action ?>">
           <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
           <div class="row g-3">
             <div class="col-md-6">
@@ -144,8 +144,8 @@ $seguimientos = $seguimientos ?? [];
                     <?php endforeach; ?>
                   </select>
               <?php else: ?>
+                  <!-- Mostramos el nombre bloqueado, pero ya NO enviamos el ID incorrecto por debajo -->
                   <input type="text" class="form-control bg-light" value="<?= Helpers::e(Auth::user()['nombre']) ?>" readonly disabled>
-                  <input type="hidden" name="agente_id" value="<?= Auth::userId() ?>">
               <?php endif; ?>
             </div>
           
@@ -172,84 +172,131 @@ $seguimientos = $seguimientos ?? [];
     </div>
   </div>
 
-  <?php if ($isEdit): ?>
   <div class="col-lg-4">
-    <!-- Derivación -->
-    <?php if (Auth::hasRole('admin','supervisor','operador') && (int)$lead['derivado_ventas'] === 0): ?>
-    <div class="card shadow-sm mb-3">
-      <div class="card-header bg-warning-subtle"><strong>Derivar a ventas</strong></div>
-      <div class="card-body">
-        <form method="post" action="<?= Helpers::url('/leads/'.$lead['id'].'/derivar') ?>">
-          <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
-          <select name="vendedor_tabla_id" class="form-select mb-2" required>
-            <option value="">Selecciona vendedor…</option>
-            <?php foreach ($catalog->vendedores() as $v): ?>
-              <option value="<?= $v['id'] ?>"><?= Helpers::e($v['nombre']) ?></option>
-            <?php endforeach; ?>
-          </select>
-          <button class="btn btn-warning w-100"><i class="bi bi-send"></i> Derivar</button>
-        </form>
+    
+    <?php if (!$isEdit): ?>
+      <!-- ========================================== -->
+      <!-- PANEL PARA NUEVOS LEADS (Botón Naranja) -->
+      <!-- ========================================== -->
+      <div class="card shadow-sm mb-3 border-0">
+        <div class="card-body p-0">
+          <div class="p-3 bg-light border-bottom">
+            <h6 class="mb-0 text-muted">Opción rápida</h6>
+          </div>
+          <div class="p-3">
+            <label class="form-label">Asignar vendedor al crear:</label>
+            <!-- Le añadimos id="vendedorSelect" -->
+            <select name="vendedor_tabla_id" id="vendedorSelect" form="mainLeadForm" class="form-select mb-3">
+              <option value="">— No derivar aún —</option>
+              <?php foreach ($catalog->vendedores() as $v): ?>
+                <option value="<?= $v['id'] ?>"><?= Helpers::e($v['nombre']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            
+            <!-- CAMBIAMOS type="submit" por type="button" y añadimos id="btnDerivarVisual" -->
+            <button type="button" id="btnDerivarVisual" class="btn w-100 p-4 text-white shadow-sm" style="background-color: #ed7d31; font-size: 1.25rem; letter-spacing: 1px; font-weight: bold;">
+              DERIVAR
+            </button>
+            <div class="text-center mt-2 small text-muted" id="textoAyudaDerivar">
+              Selecciona un vendedor y presiona Derivar
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+      
     <?php else: ?>
-      <div class="alert alert-success"><i class="bi bi-check-circle"></i>
-        Ya derivado a <strong><?= Helpers::e($lead['vendedor_tabla_id']) ?></strong>
-        el <?= Helpers::e($lead['fecha_derivado_ventas']) ?></div>
-    <?php endif; ?>
-
-    <!-- Seguimientos -->
-    <div class="card shadow-sm">
-      <div class="card-header d-flex align-items-center">
-        <strong>Seguimientos</strong>
-        <span class="badge bg-secondary ms-2"><?= count($seguimientos) ?>/7</span>
-        <?php if (count($seguimientos) < 7): ?>
-        <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="collapse" data-bs-target="#segForm">
-          <i class="bi bi-plus"></i> Agregar</button>
-        <?php endif; ?>
-      </div>
-      <div class="card-body p-0">
-        <div id="segForm" class="collapse border-bottom p-3">
-          <form id="frmSeg" data-lead="<?= $lead['id'] ?>">
-            <div class="mb-2">
-              <label class="form-label small">Estado</label>
-              <select name="estado" class="form-select form-select-sm">
-                <?php foreach (['contesto','apagado','colgo','ocupado','no_contesta','no_le_interesa','se_envio_mensaje'] as $s): ?>
-                  <option value="<?= $s ?>"><?= $s ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Comentario</label>
-              <textarea name="comentario" rows="2" class="form-control form-control-sm"></textarea>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Próximo contacto</label>
-              <input type="datetime-local" name="fecha_proximo_contacto" class="form-control form-control-sm">
-            </div>
-            <button class="btn btn-sm btn-primary w-100">Guardar seguimiento</button>
+      <!-- ========================================== -->
+      <!-- PANEL PARA LEADS EXISTENTES (Edición) -->
+      <!-- ========================================== -->
+      
+      <!-- Derivación tradicional -->
+      <?php if (Auth::hasRole('admin','supervisor','operador') && (int)$lead['derivado_ventas'] === 0): ?>
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-warning-subtle"><strong>Derivar a ventas</strong></div>
+        <div class="card-body">
+          <form method="post" action="<?= Helpers::url('/leads/'.$lead['id'].'/derivar') ?>">
+            <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
+            <select name="vendedor_tabla_id" class="form-select mb-2" required>
+              <option value="">Selecciona vendedor…</option>
+              <?php foreach ($catalog->vendedores() as $v): ?>
+                <option value="<?= $v['id'] ?>"><?= Helpers::e($v['nombre']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <button class="btn btn-warning w-100"><i class="bi bi-send"></i> Derivar</button>
           </form>
         </div>
-        <ul class="list-group list-group-flush">
-          <?php foreach ($seguimientos as $s): ?>
-            <li class="list-group-item">
-              <div class="d-flex">
-                <span class="badge bg-primary me-2 align-self-start">#<?= $s['iteracion'] ?></span>
-                <div class="flex-grow-1">
-                  <div class="fw-semibold"><?= Helpers::e($s['estado']) ?></div>
-                  <?php if ($s['comentario']): ?><div class="small text-muted"><?= Helpers::e($s['comentario']) ?></div><?php endif; ?>
-                  <div class="small text-muted"><?= Helpers::e($s['created_at']) ?>
-                    <?php if ($s['fecha_proximo_contacto']): ?>
-                      · próx: <?= Helpers::e($s['fecha_proximo_contacto']) ?>
-                    <?php endif; ?></div>
-                </div>
-              </div>
-            </li>
-          <?php endforeach; ?>
-        </ul>
       </div>
-    </div>
+      
+      <?php else: ?>
+        <?php 
+          // Buscamos el nombre del vendedor en el catálogo usando su ID
+          $nombreVendedor = $lead['vendedor_tabla_id']; 
+          foreach ($catalog->vendedores() as $v) {
+              if ($v['id'] == $lead['vendedor_tabla_id']) {
+                  $nombreVendedor = $v['nombre'];
+                  break;
+              }
+          }
+        ?>
+        <div class="alert alert-success"><i class="bi bi-check-circle"></i>
+          Ya derivado a <strong><?= Helpers::e($nombreVendedor) ?></strong>
+          el <?= Helpers::e($lead['fecha_derivado_ventas']) ?></div>
+      <?php endif; ?>
+
+      <!-- Seguimientos -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex align-items-center">
+          <strong>Seguimientos</strong>
+          <span class="badge bg-secondary ms-2"><?= count($seguimientos) ?>/7</span>
+          <?php if (count($seguimientos) < 7): ?>
+          <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="collapse" data-bs-target="#segForm">
+            <i class="bi bi-plus"></i> Agregar</button>
+          <?php endif; ?>
+        </div>
+        <div class="card-body p-0">
+          <div id="segForm" class="collapse border-bottom p-3">
+            <form id="frmSeg" data-lead="<?= $lead['id'] ?>">
+              <div class="mb-2">
+                <label class="form-label small">Estado</label>
+                <select name="estado" class="form-select form-select-sm">
+                  <?php foreach (['contesto','apagado','colgo','ocupado','no_contesta','no_le_interesa','se_envio_mensaje'] as $s): ?>
+                    <option value="<?= $s ?>"><?= $s ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small">Comentario</label>
+                <textarea name="comentario" rows="2" class="form-control form-control-sm"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small">Próximo contacto</label>
+                <input type="datetime-local" name="fecha_proximo_contacto" class="form-control form-control-sm">
+              </div>
+              <button class="btn btn-sm btn-primary w-100">Guardar seguimiento</button>
+            </form>
+          </div>
+          <ul class="list-group list-group-flush">
+            <?php foreach ($seguimientos as $s): ?>
+              <li class="list-group-item">
+                <div class="d-flex">
+                  <span class="badge bg-primary me-2 align-self-start">#<?= $s['iteracion'] ?></span>
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold"><?= Helpers::e($s['estado']) ?></div>
+                    <?php if ($s['comentario']): ?><div class="small text-muted"><?= Helpers::e($s['comentario']) ?></div><?php endif; ?>
+                    <div class="small text-muted"><?= Helpers::e($s['created_at']) ?>
+                      <?php if ($s['fecha_proximo_contacto']): ?>
+                        · próx: <?= Helpers::e($s['fecha_proximo_contacto']) ?>
+                      <?php endif; ?></div>
+                  </div>
+                </div>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      </div>
+      
+    <?php endif; ?>
   </div>
-  <?php endif; ?>
 </div>
 
 <!-- SCRIPT PRINCIPAL: PAÍSES, CIUDADES, EMPRESAS, CAMPAÑAS Y PROYECTOS -->
@@ -259,6 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     // 1. LÓGICA DE PAÍSES Y CIUDADES
     // ==========================================
+
     const paisSelect = document.getElementById('paisSelect');
     const ciudadSelect = document.getElementById('ciudadSelect');
     const ciudadGuardada = ciudadSelect ? ciudadSelect.getAttribute('data-ciudad-guardada') : null;
@@ -334,8 +382,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const proyectoGuardado = proyectoSelect ? proyectoSelect.getAttribute('data-proyecto-guardado') : null;
 
         function actualizarDependientes() {
+
+        debugger; 
+           
+                      
             const empresaIdSeleccionada = empresaSelect.value;
-            
+         
             // --- FILTRAR CAMPAÑAS ---
             if (campanaSelect) {
                 campanaSelect.options.length = 0; // Vaciar
@@ -345,7 +397,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     campanaSelect.add(new Option("— Seleccionar Campaña —", ""));
                     campanasOriginales.forEach((camp, index) => {
                         if (index === 0) return;
+
+                        console.log(`Evaluando campaña: ${camp.text} | Su data-empresa-id es: '${camp.empresaId}'`);
+                        
+                        // 🔥 3. Comprobamos la condición clave
                         if (camp.empresaId === empresaIdSeleccionada) {
+
                             const nuevaOpcion = new Option(camp.text, camp.value);
                             nuevaOpcion.setAttribute('data-empresa-id', camp.empresaId);
                             campanaSelect.add(nuevaOpcion);
@@ -387,6 +444,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnDerivar = document.getElementById('btnDerivarVisual');
+    const vendedorSelect = document.getElementById('vendedorSelect');
+    const textoAyuda = document.getElementById('textoAyudaDerivar');
+
+    if (btnDerivar && vendedorSelect) {
+        // Al hacer clic en el botón naranja
+        btnDerivar.addEventListener('click', function() {
+            // Validamos que haya escogido a alguien
+            if (vendedorSelect.value === "") {
+                alert("Por favor, selecciona un vendedor primero.");
+                return;
+            }
+            
+            // Transformación visual: ¡Éxito!
+            btnDerivar.style.backgroundColor = "#198754"; // Verde de éxito
+            btnDerivar.innerHTML = '<i class="bi bi-check-circle"></i> Derivado exitoso';
+            textoAyuda.innerHTML = "<strong>¡Listo!</strong> Ahora presiona el botón azul 'Guardar' para finalizar.";
+        });
+
+        // Detalle extra: Si el usuario cambia de opinión y elige otro vendedor distinto, 
+        // regresamos el botón a su estado naranja original
+        vendedorSelect.addEventListener('change', function() {
+            btnDerivar.style.backgroundColor = "#ed7d31";
+            btnDerivar.innerHTML = 'DERIVAR';
+            textoAyuda.innerHTML = "Selecciona un vendedor y presiona Derivar";
+        });
+    }
+});
+</script>
+
+
+
 
 <?php if ($isEdit): ?>
 <script>
