@@ -1,0 +1,61 @@
+// --- 10. VALIDACIÓN DEL AGENTE Y AUTO-ASIGNACIÓN (SOLUCIÓN DEFINITIVA) ---
+        $rolUsuario = Auth::role();
+        $perfilId = Auth::profileId();
+
+        // Validamos si es Admin o Supervisor para que puedan elegir de la lista
+        if ($rolUsuario === 'admin' || $rolUsuario === 'supervisor') {
+            $agente_id = trim((string)($in['agente_id'] ?? ''));
+            
+            // 10a. Validar que no esté vacío
+            if ($agente_id === '') {
+                Helpers::flash('error', 'El agente es obligatorio. Por favor, selecciona uno de la lista.');
+                Helpers::redirect($_SERVER['HTTP_REFERER'] ?? '/leads');
+                exit;
+            }
+
+            // 10b. Validar que el ID del agente realmente exista en el catálogo
+            $agenteExiste = false;
+            foreach ($this->cat->agentes() as $agente) {
+                if ((string)$agente['id'] === $agente_id) {
+                    $agenteExiste = true;
+                    break;
+                }
+            }
+
+            if (!$agenteExiste) {
+                Helpers::flash('error', 'Error de seguridad: El agente seleccionado no es válido.');
+                Helpers::redirect($_SERVER['HTTP_REFERER'] ?? '/leads');
+                exit;
+            }
+        } else {
+            // 10c. AUTO-ASIGNACIÓN PARA OPERADORES (Creación JIT)
+            $db = Database::pdo();
+            
+            // 1. Buscamos si este perfil de operador ya está registrado como agente
+            $stmt = $db->prepare("SELECT id FROM agentes WHERE profile_id = ?");
+            $stmt->execute([$perfilId]);
+            $agenteDB = $stmt->fetch();
+
+            if ($agenteDB) {
+                // Si ya existe, tomamos su ID oficial de la tabla agentes
+                $agente_id = $agenteDB['id'];
+            } else {
+                // NO EXISTE: Lo insertamos silenciosamente para evitar el Error 1452
+                $stmtNom = $db->prepare("SELECT nombre FROM profiles WHERE id = ?");
+                $stmtNom->execute([$perfilId]);
+                $perfilInfo = $stmtNom->fetch();
+                $nombreReal = $perfilInfo ? $perfilInfo['nombre'] : 'Operador JIT';
+
+                // Insertamos en la tabla agentes delegando a MySQL la creación del UUID
+                $stmtInsert = $db->prepare("INSERT INTO agentes (id, nombre, profile_id, activo) VALUES (UUID(), ?, ?, 1)");
+                $stmtInsert->execute([$nombreReal, $perfilId]);
+                
+                // Recuperamos el nuevo ID oficial
+                $stmtGetId = $db->prepare("SELECT id FROM agentes WHERE profile_id = ?");
+                $stmtGetId->execute([$perfilId]);
+                $nuevoAgente = $stmtGetId->fetch();
+                
+                // Asignamos el ID correcto y seguro al lead
+                $agente_id = $nuevoAgente['id'];
+            }
+        }
