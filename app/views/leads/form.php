@@ -19,21 +19,33 @@ $seguimientos = $seguimientos ?? [];
         <form id="mainLeadForm" method="post" action="<?= $action ?>">
           <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
           <div class="row g-3">
+
+
             <div class="col-md-6">
               <label class="form-label">Nombre *</label>
-              <input required name="nombre" class="form-control" value="<?= $v('nombre') ?>">
+              <input required name="nombre" class="form-control" value="<?= $v('nombre') ?>" 
+                     pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+(?:\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+)+$" 
+                     title="Debe ingresar al menos un nombre y un apellido (solo letras)">
             </div>
+
+
             <div class="col-md-3">
-              <label class="form-label">Teléfono</label>
-              <input name="telefono" class="form-control" value="<?= $v('telefono') ?>">
+              <label class="form-label">Teléfono *</label>
+              <input required name="telefono" class="form-control" value="<?= $v('telefono') ?>"
+                     pattern="^\+[0-9\s]{7,20}$" 
+                     title="El teléfono es obligatorio y debe comenzar con + (ej. +591 7625762)">
             </div>
+
             <div class="col-md-3">
               <label class="form-label">Fecha lead</label>
               <input type="date" name="fecha_lead" class="form-control" value="<?= $v('fecha_lead', date('Y-m-d')) ?>">
             </div>
+
             <div class="col-md-6">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control" value="<?= $v('email') ?>">
+              <label class="form-label">Email *</label>
+              <input required type="email" name="email" class="form-control" value="<?= $v('email') ?>" 
+                     pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+                     title="Ingrese un correo electrónico válido que incluya un dominio (ej. usuario@empresa.com)">
             </div>
             
             <div class="col-md-3">
@@ -48,16 +60,16 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Ciudad</label>
-              <select name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
+              <label class="form-label">Ciudad *</label>
+              <select required name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
                 <option value="">— Seleccionar —</option>
               </select>
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Empresa</label>
-              <select name="empresa_id" id="empresaSelect" class="form-select">
-                <option value="">—</option>
+              <label class="form-label">Empresa *</label>
+              <select required name="empresa_id" id="empresaSelect" class="form-select">
+                <option value="">— Seleccionar Empresa —</option>
                 <?php foreach ($catalog->empresas() as $e): ?>
                   <option value="<?= $e['id'] ?>" <?= ($lead['empresa_id'] ?? '') === $e['id'] ? 'selected' : '' ?>>
                     <?= Helpers::e($e['nombre']) ?></option>
@@ -66,8 +78,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Campaña</label>
-              <select name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
+              <label class="form-label">Campaña *</label>
+              <select required name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
                 <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->campanas() as $c): ?>
                   <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -78,8 +90,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Proyecto</label>
-              <select name="proyecto_id" id="proyectoSelect" class="form-select" data-proyecto-guardado="<?= $v('proyecto_id') ?>">
+              <label class="form-label">Proyecto *</label>
+              <select required name="proyecto_id" id="proyectoSelect" class="form-select" data-proyecto-guardado="<?= $v('proyecto_id') ?>">
                 <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->proyectos() as $c): ?>
                   <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['proyecto_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -90,9 +102,9 @@ $seguimientos = $seguimientos ?? [];
             </div>
             
             <div class="col-md-3">
-              <label class="form-label">Canal</label>
-              <select name="canal_id" class="form-select">
-                <option value="">—</option>
+              <label class="form-label">Canal *</label>
+              <select required name="canal_id" class="form-select">
+                <option value="">— Seleccionar —</option>
                 <?php foreach ($catalog->canales() as $c): ?>
                   <option value="<?= $c['id'] ?>" <?= ($lead['canal_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
                     <?= Helpers::e($c['nombre']) ?></option>
@@ -101,9 +113,9 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Nivel de Interés (MQL)</label>
-              <select name="mql_id" class="form-select">
-                <option value="">— Sin MQL —</option>
+              <label class="form-label">Nivel de Interés (MQL) *</label>
+              <select required name="mql_id" class="form-select" title="Selecciona un Nivel de Interés válido">
+                <option value="">— Seleccionar MQL —</option>
                 <?php foreach ($catalog->mql() as $c): ?>
                   <option value="<?= $c['id'] ?>" <?= ($lead['mql_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
                     <?= Helpers::e($c['nivel']) ?></option>
@@ -121,8 +133,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Tipo pago</label>
-              <select name="tipo_pago" class="form-select">
+              <label class="form-label">Tipo pago *</label>
+              <select required name="tipo_pago" class="form-select">
                 <option value="">— Seleccionar —</option>
                 <?php foreach (['Contado', 'Plazo'] as $pago): ?>
                   <option value="<?= $pago ?>" <?= ($lead['tipo_pago'] ?? '') === $pago ? 'selected' : '' ?>>
@@ -133,10 +145,10 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Agente</label>
+              <label class="form-label">Agente *</label>
               <?php if (Auth::isSupervisor()): ?>
-                  <select name="agente_id" class="form-select">
-                    <option value="">—</option>
+                  <select required name="agente_id" class="form-select">
+                    <option value="">— Seleccionar Agente —</option>
                     <?php foreach ($catalog->agentes() as $a): ?>
                       <option value="<?= $a['id'] ?>" <?= ($lead['agente_id'] ?? '') === $a['id'] ? 'selected' : '' ?>>
                         <?= Helpers::e($a['nombre']) ?>
@@ -144,7 +156,7 @@ $seguimientos = $seguimientos ?? [];
                     <?php endforeach; ?>
                   </select>
               <?php else: ?>
-                  <!-- Mostramos el nombre bloqueado, pero ya NO enviamos el ID incorrecto por debajo -->
+                  <!-- Operador: Muestra su nombre bloqueado -->
                   <input type="text" class="form-control bg-light" value="<?= Helpers::e(Auth::user()['nombre']) ?>" readonly disabled>
               <?php endif; ?>
             </div>
@@ -304,11 +316,12 @@ $seguimientos = $seguimientos ?? [];
 document.addEventListener('DOMContentLoaded', function() {
     
     // ==========================================
-    // 1. LÓGICA DE PAÍSES Y CIUDADES
+    // 1. LÓGICA DE PAÍSES, CIUDADES Y PREFIJOS
     // ==========================================
 
     const paisSelect = document.getElementById('paisSelect');
     const ciudadSelect = document.getElementById('ciudadSelect');
+    const inputTelefono = document.querySelector('input[name="telefono"]');
     const ciudadGuardada = ciudadSelect ? ciudadSelect.getAttribute('data-ciudad-guardada') : null;
 
     const ciudadesPorPais = {
@@ -325,12 +338,21 @@ document.addEventListener('DOMContentLoaded', function() {
         'Uruguay': ['Montevideo']
     };
 
+    // Diccionario de prefijos para autocompletar
+    const prefijosPorPais = {
+        'Bolivia': '+591 ', 'Argentina': '+54 ', 'Chile': '+56 ', 'Colombia': '+57 ', 
+        'Ecuador': '+593 ', 'España': '+34 ', 'Estados Unidos': '+1 ', 'México': '+52 ', 
+        'Paraguay': '+595 ', 'Perú': '+51 ', 'Uruguay': '+598 '
+    };
+
     if (paisSelect && ciudadSelect) {
         function actualizarCiudades() {
             let paisNombre = '';
             if (paisSelect.selectedIndex > 0) {
                 paisNombre = paisSelect.options[paisSelect.selectedIndex].text.trim();
             }
+
+            // 1. Actualizar Ciudades
             ciudadSelect.innerHTML = '<option value="">— Seleccionar —</option>';
             if (ciudadesPorPais[paisNombre]) {
                 ciudadesPorPais[paisNombre].forEach(function(ciudad) {
@@ -341,7 +363,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     ciudadSelect.appendChild(option);
                 });
             }
+
+            // 2. Reemplazo Inteligente del Prefijo Telefónico
+            if (prefijosPorPais[paisNombre] && inputTelefono) {
+                let telActual = inputTelefono.value.trim();
+                let nuevoPrefijo = prefijosPorPais[paisNombre];
+                
+                // Expresión regular que busca si el texto empieza con un "+" seguido de 1 a 4 números y un espacio (ej. +591 )
+                let regexPrefijoViejo = /^\+\d{1,4}\s?/; 
+
+                if (regexPrefijoViejo.test(telActual)) {
+                    // Si ya tenía un prefijo (ej. +591), lo cambia por el nuevo (ej. +54) y deja el resto del número intacto
+                    inputTelefono.value = telActual.replace(regexPrefijoViejo, nuevoPrefijo);
+                } else {
+                    // Si estaba completamente vacío, simplemente le pone el nuevo prefijo
+                    inputTelefono.value = nuevoPrefijo + telActual;
+                }
+            }
         }
+        
         paisSelect.addEventListener('change', actualizarCiudades);
         actualizarCiudades();
     }
