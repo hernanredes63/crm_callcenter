@@ -7,7 +7,7 @@ return [
     'port'     => 3306,
     #'database' => 'crm_callcenter',  // crm_leads
     #'username' => 'root',
-    'database' => 'crm_db',
+    'database' => 'crm_callcenter',
     'username' => 'crm_user',
     'password' => '1234',
     'charset'  => 'utf8mb4',
