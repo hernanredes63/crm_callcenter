@@ -223,6 +223,8 @@ final class LeadsController extends Controller
         $this->json(['leads' => $rows]);
     }
 
+
+   /* 
     private function validate(array $in): array
     {
         $nombre = trim((string)($in['nombre'] ?? ''));
@@ -432,11 +434,22 @@ final class LeadsController extends Controller
                 $perfilInfo = $stmtNom->fetch();
                 $nombreReal = $perfilInfo ? $perfilInfo['nombre'] : 'Operador JIT';
 
+
                 // Usamos autoincremento normal de MySQL (no UUID)
-                $stmtInsert = $db->prepare("INSERT INTO agentes (nombre, profile_id, activo) VALUES (?, ?, 1)");
-                $stmtInsert->execute([$nombreReal, $perfilId]);
+                ///$stmtInsert = $db->prepare("INSERT INTO agentes (nombre, profile_id, activo) VALUES (?, ?, 1)");
+                ///$stmtInsert->execute([$nombreReal, $perfilId]);
                 
-                $agente_id = $db->lastInsertId();
+                ////$agente_id = $db->lastInsertId();
+
+
+
+                // Generamos el UUID con el Helper del sistema
+                $agente_id = Helpers::uuid(); 
+
+                // Inyectamos el ID explícitamente en el INSERT
+                $stmtInsert = $db->prepare("INSERT INTO agentes (id, nombre, profile_id, activo) VALUES (?, ?, ?, 1)");
+                $stmtInsert->execute([$agente_id, $nombreReal, $perfilId]);
+
             }
         }
 
@@ -478,4 +491,85 @@ final class LeadsController extends Controller
             'fecha_lead'   => $in['fecha_lead'] ?: date('Y-m-d'),
         ];
     }
+
+    */
+
+
+
+
+
+
+    private function validate(array $in): array
+    {
+        // 1. Recibimos todos los campos de texto permitiendo que vengan en blanco
+        $nombre     = trim((string)($in['nombre'] ?? ''));
+        $telefono   = trim((string)($in['telefono'] ?? ''));
+        $email      = trim((string)($in['email'] ?? ''));
+        $ciudad     = trim((string)($in['ciudad'] ?? ''));
+        $tipo_pago  = trim((string)($in['tipo_pago'] ?? ''));
+        $comentario = trim((string)($in['comentario'] ?? ''));
+
+        // 2. Para las llaves foráneas (listas desplegables), si vienen vacías pasamos NULL 
+        // para evitar errores de restricción en MySQL
+        $pais_id     = !empty($in['pais_id']) ? $in['pais_id'] : null;
+        $empresa_id  = !empty($in['empresa_id']) ? $in['empresa_id'] : null;
+        $proyecto_id = !empty($in['proyecto_id']) ? $in['proyecto_id'] : null;
+        $campana_id  = !empty($in['campana_id']) ? $in['campana_id'] : null;
+        $canal_id    = !empty($in['canal_id']) ? $in['canal_id'] : null;
+        $mql_id      = !empty($in['mql_id']) ? $in['mql_id'] : null;
+        
+        $temperatura = in_array($in['temperatura'] ?? '', ['frio','tibio','caliente'], true) ? $in['temperatura'] : 'frio';
+        $fecha_lead  = !empty($in['fecha_lead']) ? $in['fecha_lead'] : date('Y-m-d');
+
+        // 3. Lógica interna de asignación de agentes (Mantuvimos el UUID que arreglamos hoy)
+        $rolUsuario = Auth::role();
+        $perfilId = Auth::profileId();
+        $agente_id = null;
+
+        if ($rolUsuario === 'admin' || $rolUsuario === 'supervisor') {
+            $agente_id = !empty($in['agente_id']) ? trim((string)$in['agente_id']) : null;
+        } else {
+            $db = Database::pdo();
+            $stmt = $db->prepare("SELECT id FROM agentes WHERE profile_id = ?");
+            $stmt->execute([$perfilId]);
+            $agenteDB = $stmt->fetch();
+
+            if ($agenteDB && !empty($agenteDB['id'])) {
+                $agente_id = $agenteDB['id'];
+            } else {
+                $stmtNom = $db->prepare("SELECT nombre FROM profiles WHERE id = ?");
+                $stmtNom->execute([$perfilId]);
+                $perfilInfo = $stmtNom->fetch();
+                $nombreReal = $perfilInfo ? $perfilInfo['nombre'] : 'Operador JIT';
+
+                $agente_id = Helpers::uuid(); 
+                $stmtInsert = $db->prepare("INSERT INTO agentes (id, nombre, profile_id, activo) VALUES (?, ?, ?, 1)");
+                $stmtInsert->execute([$agente_id, $nombreReal, $perfilId]);
+            }
+        }
+
+        // 4. Retornamos el arreglo directo a la base de datos sin restricciones
+        return [
+            'nombre'       => $nombre,
+            'telefono'     => $telefono,
+            'email'        => $email,
+            'pais_id'      => $pais_id,
+            'ciudad'       => $ciudad,
+            'empresa_id'   => $empresa_id,
+            'proyecto_id'  => $proyecto_id,
+            'campana_id'   => $campana_id,
+            'canal_id'     => $canal_id,
+            'mql_id'       => $mql_id,
+            'temperatura'  => $temperatura,
+            'tipo_pago'    => $tipo_pago,
+            'comentario'   => $comentario,
+            'agente_id'    => $agente_id,
+            'fecha_lead'   => $fecha_lead,
+        ];
+    }
+
+
+
+
+
 }

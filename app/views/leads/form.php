@@ -23,17 +23,16 @@ $seguimientos = $seguimientos ?? [];
 
             <div class="col-md-6">
               <label class="form-label">Nombre *</label>
-              <input required name="nombre" class="form-control" value="<?= $v('nombre') ?>" 
-                     pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+(?:\s+[a-zA-ZáéíóúÁÉÍÓÚñÑ]+)+$" 
-                     title="Debe ingresar al menos un nombre y un apellido (solo letras)">
+            
+              <input name="nombre" class="form-control" required>
+              
             </div>
 
 
             <div class="col-md-3">
-              <label class="form-label">Teléfono *</label>
-              <input required name="telefono" class="form-control" value="<?= $v('telefono') ?>"
-                     pattern="^\+[0-9\s]{7,20}$" 
-                     title="El teléfono es obligatorio y debe comenzar con + (ej. +591 7625762)">
+              <label class="form-label">Teléfono</label>
+               <input name="telefono" class="form-control" >      
+              
             </div>
 
             <div class="col-md-3">
@@ -42,10 +41,9 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Email *</label>
-              <input required type="email" name="email" class="form-control" value="<?= $v('email') ?>" 
-                     pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
-                     title="Ingrese un correo electrónico válido que incluya un dominio (ej. usuario@empresa.com)">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">         
+
             </div>
             
             <div class="col-md-3">
@@ -60,15 +58,17 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Ciudad *</label>
-              <select required name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
+              <label class="form-label">Ciudad</label>
+
+               <select name="ciudad" id="ciudadSelect" class="form-select" data-ciudad-guardada="<?= $v('ciudad') ?>">
                 <option value="">— Seleccionar —</option>
-              </select>
+              </select>   
+
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Empresa *</label>
-              <select required name="empresa_id" id="empresaSelect" class="form-select">
+              <label class="form-label">Empresa</label>
+              <select name="empresa_id" id="empresaSelect" class="form-select">
                 <option value="">— Seleccionar Empresa —</option>
                 <?php foreach ($catalog->empresas() as $e): ?>
                   <option value="<?= $e['id'] ?>" <?= ($lead['empresa_id'] ?? '') === $e['id'] ? 'selected' : '' ?>>
@@ -78,8 +78,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Campaña *</label>
-              <select required name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
+              <label class="form-label">Campaña</label>
+              <select name="campana_id" id="campanaSelect" class="form-select" data-campana-guardada="<?= $v('campana_id') ?>">
                 <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->campanas() as $c): ?>
                   <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['campana_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -90,8 +90,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Proyecto *</label>
-              <select required name="proyecto_id" id="proyectoSelect" class="form-select" data-proyecto-guardado="<?= $v('proyecto_id') ?>">
+              <label class="form-label">Proyecto</label>
+              <select name="proyecto_id" id="proyectoSelect" class="form-select" data-proyecto-guardado="<?= $v('proyecto_id') ?>">
                 <option value="" data-empresa-id="">— Seleccionar Empresa Primero —</option>
                 <?php foreach ($catalog->proyectos() as $c): ?>
                   <option value="<?= $c['id'] ?>" data-empresa-id="<?= $c['empresa_id'] ?? '' ?>" <?= ($lead['proyecto_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -102,8 +102,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
             
             <div class="col-md-3">
-              <label class="form-label">Canal *</label>
-              <select required name="canal_id" class="form-select">
+              <label class="form-label">Canal</label>
+              <select name="canal_id" class="form-select">
                 <option value="">— Seleccionar —</option>
                 <?php foreach ($catalog->canales() as $c): ?>
                   <option value="<?= $c['id'] ?>" <?= ($lead['canal_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -113,8 +113,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Nivel de Interés (MQL) *</label>
-              <select required name="mql_id" class="form-select" title="Selecciona un Nivel de Interés válido">
+              <label class="form-label">Nivel de Interés (MQL)</label>
+              <select name="mql_id" class="form-select" title="Selecciona un Nivel de Interés válido">
                 <option value="">— Seleccionar MQL —</option>
                 <?php foreach ($catalog->mql() as $c): ?>
                   <option value="<?= $c['id'] ?>" <?= ($lead['mql_id'] ?? '') === $c['id'] ? 'selected' : '' ?>>
@@ -133,8 +133,8 @@ $seguimientos = $seguimientos ?? [];
             </div>
 
             <div class="col-md-3">
-              <label class="form-label">Tipo pago *</label>
-              <select required name="tipo_pago" class="form-select">
+              <label class="form-label">Tipo pago</label>
+              <select name="tipo_pago" class="form-select">
                 <option value="">— Seleccionar —</option>
                 <?php foreach (['Contado', 'Plazo'] as $pago): ?>
                   <option value="<?= $pago ?>" <?= ($lead['tipo_pago'] ?? '') === $pago ? 'selected' : '' ?>>

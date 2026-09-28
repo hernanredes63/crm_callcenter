@@ -51,8 +51,13 @@ abstract class Controller
     {
         $this->requireAuth();
         if (!Auth::hasRole(...$roles)) {
-            http_response_code(403);
-            exit('No tienes permisos para acceder a este recurso.');
+            #http_response_code(403);
+            #exit('No tienes permisos para acceder a este recurso.');
+            //guardamos un mesaje visula bonito (flash)
+            Helpers::flash('error', 'No tienes persmisos para acceder a este modulo.');
+            //lo pateamos de nuevo a la pantalla inicial del leads
+            Helpers::redirect('/leads');
+            exit;
         }
     }
 }
