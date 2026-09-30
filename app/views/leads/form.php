@@ -30,8 +30,10 @@ $seguimientos = $seguimientos ?? [];
 
 
             <div class="col-md-3">
-              <label class="form-label">Teléfono</label>
-               <input name="telefono" class="form-control" >      
+              <label class="form-label">Teléfono *</label>
+               <input required name="telefono" class="form-control" value="<?= $v('telefono') ?>"
+                     pattern="^\+[0-9\s]{7,20}$" 
+                     title="El teléfono es obligatorio y debe comenzar con + (ej. +591 7625762), elige un pais por favor">      
               
             </div>
 
