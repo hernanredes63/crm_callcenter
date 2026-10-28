@@ -136,9 +136,12 @@ final class Lead extends Model
             [$id]
         );
         if (!$existing) throw new RuntimeException('Lead no encontrado');
-        if ((int)$existing['derivado_ventas'] === 1) {
-            throw new RuntimeException('Este lead ya fue derivado a ventas por otro operador.');
-        }
+
+       // if ((int)$existing['derivado_ventas'] === 1) {
+       //     throw new RuntimeException('Este lead ya fue derivado a ventas por otro operador.');
+       // }
+
+
         $this->exec(
             'UPDATE leads
                 SET derivado_ventas = 1,
