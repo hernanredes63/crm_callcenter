@@ -55,6 +55,11 @@ $router->post('/usuarios/{id}/rol',       [UsuariosController::class, 'updateRol
     array_merge($auth, [AuthMiddleware::role('admin','supervisor')]));
 $router->post('/usuarios/{id}/toggle',    [UsuariosController::class, 'toggleActive'],
     array_merge($auth, [AuthMiddleware::role('admin','supervisor')]));
+
+$router->post('/usuarios/{id}/editar',    [UsuariosController::class, 'update'],
+    array_merge($auth, [AuthMiddleware::role('admin','supervisor')]));
+    
+
 // Base (catálogos)
 $router->get('/base',                    [BaseController::class, 'index'],
     array_merge($auth, [AuthMiddleware::role('admin','supervisor')]));

@@ -24,7 +24,7 @@ $seguimientos = $seguimientos ?? [];
             <div class="col-md-6">
               <label class="form-label">Nombre *</label>
             
-              <input name="nombre" class="form-control" required>
+              <input name="nombre" class="form-control" value="<?= $v('nombre') ?>" required>
               
             </div>
 
@@ -223,38 +223,52 @@ $seguimientos = $seguimientos ?? [];
       <!-- PANEL PARA LEADS EXISTENTES (Edición) -->
       <!-- ========================================== -->
       
-      <!-- Derivación tradicional -->
-      <?php if (Auth::hasRole('admin','supervisor','operador') && (int)$lead['derivado_ventas'] === 0): ?>
+      <!-- Derivación tradicional y Reasignación -->
+      <?php if (Auth::hasRole('admin','supervisor','operador')): ?>
       <div class="card shadow-sm mb-3">
-        <div class="card-header bg-warning-subtle"><strong>Derivar a ventas</strong></div>
+        <div class="card-header bg-warning-subtle">
+            <strong><?= (int)$lead['derivado_ventas'] === 1 ? 'Reasignar vendedor' : 'Derivar a ventas' ?></strong>
+        </div>
         <div class="card-body">
+          
+          <?php 
+            $perfilAsignadoUUID = '';
+            if ((int)$lead['derivado_ventas'] === 1): 
+              $nombreVendedor = $lead['vendedor_tabla_id']; // Valor por defecto (ej. 10)
+              
+              // Buscamos el nombre real y el UUID cruzando el número con la tabla vendedor
+              if (!empty($lead['vendedor_tabla_id'])) {
+                  $stmt = Database::pdo()->prepare("SELECT nombre, profile_id FROM vendedor WHERE id = ?");
+                  $stmt->execute([$lead['vendedor_tabla_id']]);
+                  $vendDB = $stmt->fetch();
+                  if ($vendDB) {
+                      $nombreVendedor = $vendDB['nombre'];
+                      $perfilAsignadoUUID = $vendDB['profile_id'];
+                  }
+              }
+          ?>
+            <div class="alert alert-success mb-3 pb-2 pt-2"><i class="bi bi-check-circle"></i>
+              Derivado a: <strong><?= Helpers::e($nombreVendedor) ?></strong>
+            </div>
+          <?php endif; ?>
+
           <form method="post" action="<?= Helpers::url('/leads/'.$lead['id'].'/derivar') ?>">
             <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
             <select name="vendedor_tabla_id" class="form-select mb-2" required>
               <option value="">Selecciona vendedor…</option>
               <?php foreach ($catalog->vendedores() as $v): ?>
-                <option value="<?= $v['id'] ?>"><?= Helpers::e($v['nombre']) ?></option>
+                <!-- Usamos el UUID recuperado para pre-seleccionar correctamente al vendedor actual -->
+                <option value="<?= $v['id'] ?>" <?= $perfilAsignadoUUID === $v['id'] ? 'selected' : '' ?>>
+                    <?= Helpers::e($v['nombre']) ?>
+                </option>
               <?php endforeach; ?>
             </select>
-            <button class="btn btn-warning w-100"><i class="bi bi-send"></i> Derivar</button>
+            <button class="btn btn-warning w-100">
+                <i class="bi bi-send"></i> <?= (int)$lead['derivado_ventas'] === 1 ? 'Reasignar' : 'Derivar' ?>
+            </button>
           </form>
         </div>
       </div>
-      
-      <?php else: ?>
-        <?php 
-          // Buscamos el nombre del vendedor en el catálogo usando su ID
-          $nombreVendedor = $lead['vendedor_tabla_id']; 
-          foreach ($catalog->vendedores() as $v) {
-              if ($v['id'] == $lead['vendedor_tabla_id']) {
-                  $nombreVendedor = $v['nombre'];
-                  break;
-              }
-          }
-        ?>
-        <div class="alert alert-success"><i class="bi bi-check-circle"></i>
-          Ya derivado a <strong><?= Helpers::e($nombreVendedor) ?></strong>
-          el <?= Helpers::e($lead['fecha_derivado_ventas']) ?></div>
       <?php endif; ?>
 
       <!-- Seguimientos -->
@@ -328,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const ciudadesPorPais = {
         'Bolivia': ['Santa Cruz', 'La Paz', 'Cochabamba', 'Chuquisaca', 'Tarija', 'Potosí', 'Oruro', 'Beni', 'Pando'],
+        'Brasil': ['São Paulo', 'Río de Janeiro'],
         'Argentina': ['Buenos Aires'],
         'Chile': ['Santiago'],
         'Colombia': ['Bogotá'],
@@ -342,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Diccionario de prefijos para autocompletar
     const prefijosPorPais = {
-        'Bolivia': '+591 ', 'Argentina': '+54 ', 'Chile': '+56 ', 'Colombia': '+57 ', 
+        'Bolivia': '+591 ', 'Brasil': '+55 ', 'Argentina': '+54 ', 'Chile': '+56 ', 'Colombia': '+57 ', 
         'Ecuador': '+593 ', 'España': '+34 ', 'Estados Unidos': '+1 ', 'México': '+52 ', 
         'Paraguay': '+595 ', 'Perú': '+51 ', 'Uruguay': '+598 '
     };

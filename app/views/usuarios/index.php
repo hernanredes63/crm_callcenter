@@ -54,7 +54,26 @@ $roleBadge = [
                 <?= $u['activo'] ? 'Activo' : 'Inactivo' ?>
               </span>
             </td>
+
             <td class="text-end">
+
+                <!-- NUEVO BOTÓN DE EDICIÓN -->
+              <button type="button" class="btn btn-sm btn-outline-info btn-edit-usr" 
+                      title="Editar perfil"
+                      data-id="<?= $u['id'] ?>"
+                      data-nombre="<?= Helpers::e($u['nombre']) ?>"
+                      data-email="<?= Helpers::e($u['email'] ?? '') ?>"
+                      data-bs-toggle="modal" 
+                      data-bs-target="#mEditarUsr">
+                <i class="bi bi-pencil"></i>
+              </button>
+
+              <!-- Los formularios que ya tenías de Rol y Activar/Desactivar -->
+              <form method="post" action="<?= Helpers::url('/usuarios/'.$u['id'].'/rol') ?>" class="d-inline-flex align-items-center gap-1">
+
+
+
+
               <form method="post" action="<?= Helpers::url('/usuarios/'.$u['id'].'/rol') ?>" class="d-inline-flex align-items-center gap-1">
                 <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
                 <select name="role" class="form-select form-select-sm" style="width:auto;">
@@ -72,6 +91,8 @@ $roleBadge = [
                 </button>
               </form>
             </td>
+
+
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -110,6 +131,44 @@ $roleBadge = [
   </div>
 </div>
 
+
+<!-- MODAL EDITAR USUARIO -->
+<div class="modal fade" id="mEditarUsr" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" id="frmEditarUsr" action="" class="modal-content">
+      <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input name="nombre" id="editNombre" required class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input name="email" id="editEmail" type="email" required class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nueva Contraseña</label>
+          <input name="password" type="password" minlength="6" class="form-control" placeholder="Dejar en blanco para conservar la actual">
+          <small class="text-muted">Si no quieres cambiar la contraseña, no escribas nada aquí.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-info text-white"><i class="bi bi-save me-1"></i> Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+
+
+
 <script>
 $(function(){
   if ($.fn.DataTable && $('#tblUsuarios').length) {
@@ -118,5 +177,18 @@ $(function(){
       language:{ url:'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' }
     });
   }
+
+  // Cargar datos en el modal al presionar el botón de editar
+  $('.btn-edit-usr').on('click', function() {
+    const id = $(this).data('id');
+    const nombre = $(this).data('nombre');
+    const email = $(this).data('email');
+
+    $('#editNombre').val(nombre);
+    $('#editEmail').val(email);
+    
+    // Construir la URL dinámica para guardar los cambios
+    $('#frmEditarUsr').attr('action', '<?= Helpers::url('/usuarios/') ?>' + id + '/editar');
+  });
 });
 </script>

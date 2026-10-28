@@ -66,31 +66,41 @@ final class LeadsController extends Controller
         // ==========================================
         // DERIVACIÓN AL INSTANTE (CON JIT VENDEDOR)
         // ==========================================
-        $vendId = (int)($_POST['vendedor_tabla_id'] ?? 0);
-        
-        if ($vendId > 0) {
-            try {
-                // JIT Vendedor: Evitamos Error 1452 inyectando al vendedor si no existe
-                $db = Database::pdo();
-                $stmtCheck = $db->prepare("SELECT id FROM vendedor WHERE id = ?");
-                $stmtCheck->execute([$vendId]);
-                
-                if (!$stmtCheck->fetch()) {
-                    $stmtIns = $db->prepare("INSERT INTO vendedor (id, nombre, profile_id) VALUES (?, ?, NULL)");
-                    $stmtIns->execute([$vendId, "Vendedor Sincronizado #" . $vendId]);
-                }
+        $profileIdVendedor = trim((string)($_POST['vendedor_tabla_id'] ?? ''));
+    
+    if ($profileIdVendedor !== '') {
+        try {
+            $db = Database::pdo();
+            // 1. Buscamos si el UUID ya tiene un número en la tabla vendedor
+            $stmtCheck = $db->prepare("SELECT id FROM vendedor WHERE profile_id = ?");
+            $stmtCheck->execute([$profileIdVendedor]);
+            $vendRow = $stmtCheck->fetch();
 
-                // Ejecutamos la derivación automática
-                $this->leads->derivar((string)$newLeadId, $vendId);
-                Helpers::flash('ok', 'Lead creado y derivado a ventas exitosamente.');
-                Helpers::redirect('/leads');
-                return; 
-            } catch (Throwable $e) {
-                Helpers::flash('error', 'Lead creado, pero hubo un error de base de datos al derivar: ' . $e->getMessage());
-                Helpers::redirect('/leads');
-                return;
+            if ($vendRow && !empty($vendRow['id'])) {
+                $vendId = (int)$vendRow['id'];
+            } else {
+                // 2. Si no existe, sacamos su nombre y lo registramos
+                $stmtNom = $db->prepare("SELECT nombre FROM profiles WHERE id = ?");
+                $stmtNom->execute([$profileIdVendedor]);
+                $nombreVend = $stmtNom->fetchColumn() ?: "Vendedor JIT";
+
+                // Insertamos y dejamos que MySQL le asigne el autoincremento (INT)
+                $stmtIns = $db->prepare("INSERT INTO vendedor (nombre, profile_id) VALUES (?, ?)");
+                $stmtIns->execute([$nombreVend, $profileIdVendedor]);
+                $vendId = (int)$db->lastInsertId();
             }
+
+            // Ejecutamos la derivación automática con el INT validado
+            $this->leads->derivar((string)$newLeadId, $vendId);
+            Helpers::flash('ok', 'Lead creado y derivado a ventas exitosamente.');
+            Helpers::redirect('/leads');
+            return; 
+        } catch (Throwable $e) {
+            Helpers::flash('error', 'Lead creado, pero hubo un error de DB al derivar: ' . $e->getMessage());
+            Helpers::redirect('/leads');
+            return;
         }
+    }
         
         Helpers::flash('ok', 'Lead creado correctamente.');
         Helpers::redirect('/leads');
@@ -147,37 +157,44 @@ final class LeadsController extends Controller
     }
 
     public function derivar(string $id): void
-    {
-        $this->requireAuth();
-        Helpers::csrfCheck();
-        
-        $vendId = (int)($_POST['vendedor_tabla_id'] ?? 0);
-        
-        if ($vendId <= 0) { 
-            Helpers::flash('error', 'Por favor, selecciona un vendedor de la lista antes de presionar Derivar.'); 
-            Helpers::redirect('/leads/'.$id.'/editar'); 
-            return;
-        }
-        
-        try {
-            // JIT Vendedor: Evitamos Error 1452 inyectando al vendedor si no existe
-            $db = Database::pdo();
-            $stmtCheck = $db->prepare("SELECT id FROM vendedor WHERE id = ?");
-            $stmtCheck->execute([$vendId]);
-            
-            if (!$stmtCheck->fetch()) {
-                $stmtIns = $db->prepare("INSERT INTO vendedor (id, nombre, profile_id) VALUES (?, ?, NULL)");
-                $stmtIns->execute([$vendId, "Vendedor Sincronizado #" . $vendId]);
-            }
-            
-            $this->leads->derivar($id, $vendId);
-            Helpers::flash('ok', 'Lead derivado a ventas exitosamente.');
-        } catch (Throwable $e) {
-            Helpers::flash('error', 'Error en la base de datos al derivar: ' . $e->getMessage());
-        }
-        
-        Helpers::redirect('/leads/' . $id . '/editar');
+{
+    $this->requireAuth();
+    Helpers::csrfCheck();
+    
+    $profileIdVendedor = trim((string)($_POST['vendedor_tabla_id'] ?? ''));
+    
+    if ($profileIdVendedor === '') { 
+        Helpers::flash('error', 'Por favor, selecciona un vendedor de la lista antes de presionar Derivar.'); 
+        Helpers::redirect('/leads/'.$id.'/editar'); 
+        return;
     }
+    
+    try {
+        $db = Database::pdo();
+        $stmtCheck = $db->prepare("SELECT id FROM vendedor WHERE profile_id = ?");
+        $stmtCheck->execute([$profileIdVendedor]);
+        $vendRow = $stmtCheck->fetch();
+
+        if ($vendRow && !empty($vendRow['id'])) {
+            $vendId = (int)$vendRow['id'];
+        } else {
+            $stmtNom = $db->prepare("SELECT nombre FROM profiles WHERE id = ?");
+            $stmtNom->execute([$profileIdVendedor]);
+            $nombreVend = $stmtNom->fetchColumn() ?: "Vendedor JIT";
+
+            $stmtIns = $db->prepare("INSERT INTO vendedor (nombre, profile_id) VALUES (?, ?)");
+            $stmtIns->execute([$nombreVend, $profileIdVendedor]);
+            $vendId = (int)$db->lastInsertId();
+        }
+        
+        $this->leads->derivar($id, $vendId);
+        Helpers::flash('ok', 'Lead derivado a ventas exitosamente.');
+    } catch (Throwable $e) {
+        Helpers::flash('error', 'Error en la base de datos al derivar: ' . $e->getMessage());
+    }
+    
+    Helpers::redirect('/leads/' . $id . '/editar');
+}
 
     public function storeSeguimiento(string $id): void
     {
