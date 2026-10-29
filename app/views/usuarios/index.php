@@ -63,26 +63,12 @@ $roleBadge = [
                       data-id="<?= $u['id'] ?>"
                       data-nombre="<?= Helpers::e($u['nombre']) ?>"
                       data-email="<?= Helpers::e($u['email'] ?? '') ?>"
+                      data-role="<?= Helpers::e($r ?? '') ?>"
                       data-bs-toggle="modal" 
                       data-bs-target="#mEditarUsr">
                 <i class="bi bi-pencil"></i>
               </button>
-
-              <!-- Los formularios que ya tenías de Rol y Activar/Desactivar -->
-              <form method="post" action="<?= Helpers::url('/usuarios/'.$u['id'].'/rol') ?>" class="d-inline-flex align-items-center gap-1">
-
-
-
-
-              <form method="post" action="<?= Helpers::url('/usuarios/'.$u['id'].'/rol') ?>" class="d-inline-flex align-items-center gap-1">
-                <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
-                <select name="role" class="form-select form-select-sm" style="width:auto;">
-                  <?php foreach ($roleLabels as $rk=>$rl): ?>
-                    <option value="<?= $rk ?>" <?= $r===$rk?'selected':'' ?>><?= $rl ?></option>
-                  <?php endforeach; ?>
-                </select>
-                <button class="btn btn-sm btn-outline-primary" title="Cambiar rol"><i class="bi bi-check2"></i></button>
-              </form>
+              
               <form method="post" action="<?= Helpers::url('/usuarios/'.$u['id'].'/toggle') ?>" class="d-inline">
                 <input type="hidden" name="_csrf" value="<?= Helpers::csrf() ?>">
                 <button class="btn btn-sm btn-outline-<?= $u['activo']?'secondary':'success' ?>"
@@ -155,6 +141,17 @@ $roleBadge = [
           <input name="password" type="password" minlength="6" class="form-control" placeholder="Dejar en blanco para conservar la actual">
           <small class="text-muted">Si no quieres cambiar la contraseña, no escribas nada aquí.</small>
         </div>
+
+        <!-- NUEVO CAMPO DE ROL EN EL MODAL -->
+        <div class="mb-3">
+          <label class="form-label">Rol</label>
+          <select name="role" id="editRole" class="form-select">
+            <?php foreach ($roleLabels as $rk=>$rl): ?>
+              <option value="<?= $rk ?>"><?= $rl ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -178,14 +175,17 @@ $(function(){
     });
   }
 
+  
   // Cargar datos en el modal al presionar el botón de editar
   $('.btn-edit-usr').on('click', function() {
     const id = $(this).data('id');
     const nombre = $(this).data('nombre');
     const email = $(this).data('email');
+    const role = $(this).data('role'); // Capturamos el rol
 
     $('#editNombre').val(nombre);
     $('#editEmail').val(email);
+    $('#editRole').val(role); // Seleccionamos el rol en el desplegable
     
     // Construir la URL dinámica para guardar los cambios
     $('#frmEditarUsr').attr('action', '<?= Helpers::url('/usuarios/') ?>' + id + '/editar');

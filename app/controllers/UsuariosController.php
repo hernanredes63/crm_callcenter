@@ -120,6 +120,7 @@ final class UsuariosController extends Controller
         $nombre = trim((string)($_POST['nombre'] ?? ''));
         $email  = trim((string)($_POST['email']  ?? ''));
         $pass   = (string)($_POST['password']    ?? '');
+        $role   = (string)($_POST['role']        ?? '');
 
         if ($nombre === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             Helpers::flash('usr_error', 'El nombre y un email válido son obligatorios.');
@@ -133,9 +134,15 @@ final class UsuariosController extends Controller
             return;
         }
 
+        $validRoles = ['admin','supervisor','operador','vendedor','marketing'];
+        if (!in_array($role, $validRoles, true)) {
+            Helpers::flash('usr_error', 'Rol inválido.');
+            Helpers::redirect('/usuarios');
+            return;
+        }
+
         $db = Database::pdo();
         
-        // 1. Obtenemos el user_id autentico a partir del ID del perfil
         $stmt = $db->prepare('SELECT user_id FROM profiles WHERE id = ? LIMIT 1');
         $stmt->execute([$id]);
         $userId = $stmt->fetchColumn();
@@ -146,7 +153,6 @@ final class UsuariosController extends Controller
             return;
         }
 
-        // 2. Verificamos que el nuevo email no esté siendo usado por OTRA persona
         $exists = $db->prepare('SELECT 1 FROM users WHERE email = ? AND id != ? LIMIT 1');
         $exists->execute([$email, $userId]);
         if ($exists->fetchColumn()) {
@@ -158,21 +164,24 @@ final class UsuariosController extends Controller
         try {
             $db->beginTransaction();
 
-            // 3. Actualizamos la tabla Profiles (Información visual)
+            // 1. Actualizamos Perfil
             $db->prepare('UPDATE profiles SET nombre = ?, email = ? WHERE id = ?')
                ->execute([$nombre, $email, $id]);
 
-            // 4. Actualizamos la tabla Users (Credenciales)
+            // 2. Actualizamos Credenciales
             if ($pass !== '') {
-                // Si el admin escribió una contraseña nueva, la encriptamos y la guardamos
                 $hash = password_hash($pass, PASSWORD_BCRYPT);
                 $db->prepare('UPDATE users SET email = ?, password_hash = ? WHERE id = ?')
                    ->execute([$email, $hash, $userId]);
             } else {
-                // Si la dejó en blanco, conservamos la contraseña vieja y solo cambiamos el email
                 $db->prepare('UPDATE users SET email = ? WHERE id = ?')
                    ->execute([$email, $userId]);
             }
+
+            // 3. Actualizamos Rol
+            $db->prepare('DELETE FROM user_roles WHERE user_id = ?')->execute([$userId]);
+            $db->prepare('INSERT INTO user_roles (id, user_id, role) VALUES (?,?,?)')
+               ->execute([Helpers::uuid(), $userId, $role]);
 
             $db->commit();
             Helpers::flash('usr_ok', 'Usuario actualizado correctamente.');
